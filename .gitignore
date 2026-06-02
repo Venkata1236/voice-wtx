@@ -1,9 +1,9 @@
-﻿# Environment files — never commit these
+﻿# ── Environment files — NEVER commit these ────────────────────────
 .env
 .env.local
 .env.production
 
-# Python
+# ── Python ────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *.pyo
@@ -14,23 +14,28 @@ env/
 dist/
 build/
 .pytest_cache/
+*.pyc
 
-# Node / React
+# ── Node / React ──────────────────────────────────────────────────
 node_modules/
 frontend/dist/
 frontend/build/
 .npm/
 
-# VS Code
+# ── VS Code ───────────────────────────────────────────────────────
 .vscode/
 
-# OS
+# ── OS ────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
 
-# Logs
+# ── Logs ──────────────────────────────────────────────────────────
 *.log
 loguru/
 
-# Supabase
+# ── Supabase ──────────────────────────────────────────────────────
 supabase/.temp/
+
+# ── uploads / temp files ──────────────────────────────────────────
+backend/uploads/
+backend/temp/

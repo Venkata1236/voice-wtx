@@ -12,12 +12,21 @@ class FormatType(str, Enum):
 
 
 class ModelType(str, Enum):
-    claude_sonnet = "claude-sonnet-4-6"
+    # Anthropic — default
     claude_haiku = "claude-haiku-4-5"
-    gpt4o = "gpt-4o"
-    gemini = "gemini-1.5-pro"
-    sarvam_30b = "sarvam-30b"
-    sarvam_105b = "sarvam-105b"
+
+    # OpenAI
+    gpt4o_mini = "gpt-4o-mini"
+
+    # Google
+    gemini_flash = "gemini-1.5-flash"
+
+    # Sarvam — Indian languages
+    sarvam = "sarvam-m"
+
+    # Ollama — Forge only
+    mistral = "mistral"
+    gemma = "gemma"
 
 
 class BriefPayload(BaseModel):
@@ -30,6 +39,7 @@ class BriefPayload(BaseModel):
     length: Optional[str] = None
     notes: Optional[str] = None
     format: FormatType
-    model: ModelType = ModelType.claude_sonnet
+    # Default to cheapest Anthropic model
+    model: ModelType = ModelType.claude_haiku
     raw_brief: Optional[str] = None
     session_id: Optional[str] = None

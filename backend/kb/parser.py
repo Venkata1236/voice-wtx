@@ -1,13 +1,23 @@
 from pdfminer.high_level import extract_text as pdf_extract_text
 from docx import Document
 from loguru import logger
-import os
+from llmlingua import PromptCompressor
+
+
+# ── LLMLingua compressor — initialized once at module load ────────
+# Uses a small local model to compress text — no API call needed
+# device_map="cpu" ensures it works without GPU
+compressor = PromptCompressor(
+    model_name="microsoft/llmlingua-2-xlm-roberta-large-meetingbank",
+    use_llmlingua2=True,
+    device_map="cpu",
+)
 
 
 def extract_text_from_file(file_path: str, content_type: str) -> str:
     """
     Main entry point — detects file type and routes to correct parser.
-    Returns extracted plain text string.
+    Returns extracted and compressed plain text string.
     """
     try:
         if content_type == "application/pdf":
@@ -30,12 +40,10 @@ def extract_text_from_file(file_path: str, content_type: str) -> str:
 
 def extract_from_pdf(file_path: str) -> str:
     """
-    Extracts text from a PDF file using pdfminer.six.
-    Works only on text-based PDFs — not scanned image PDFs.
-    Scanned PDFs return empty string — user must upload DOCX instead.
+    Extracts text from a text-based PDF using pdfminer.six.
+    Scanned image PDFs return empty string.
     """
     try:
-        # pdfminer extracts text page by page automatically
         text = pdf_extract_text(file_path)
 
         if not text or not text.strip():
@@ -45,7 +53,7 @@ def extract_from_pdf(file_path: str) -> str:
             )
             return ""
 
-        # Clean up excessive whitespace and blank lines
+        # Clean up excessive whitespace
         lines = [line.strip() for line in text.splitlines()]
         cleaned = "\n".join(line for line in lines if line)
 
@@ -54,8 +62,8 @@ def extract_from_pdf(file_path: str) -> str:
             f"Words: {len(cleaned.split())}"
         )
 
-        # Truncate to 6000 words max — KB limit per VOICE spec
-        return truncate_to_word_limit(cleaned, limit=6000)
+        # Compress if over 6000 words — preserve meaning, reduce tokens
+        return compress_if_needed(cleaned, limit=6000)
 
     except Exception as e:
         logger.error(f"PDF extraction error: {e}")
@@ -65,16 +73,15 @@ def extract_from_pdf(file_path: str) -> str:
 def extract_from_docx(file_path: str) -> str:
     """
     Extracts text from a DOCX file using python-docx.
-    Reads all paragraphs in order — preserves document structure.
+    Reads all paragraphs and table cells in order.
     """
     try:
         doc = Document(file_path)
 
-        # Extract text from every paragraph in the document
+        # Extract text from every paragraph
         paragraphs = []
         for para in doc.paragraphs:
             text = para.text.strip()
-            # Skip empty paragraphs
             if text:
                 paragraphs.append(text)
 
@@ -97,37 +104,67 @@ def extract_from_docx(file_path: str) -> str:
             f"Words: {len(full_text.split())}"
         )
 
-        # Truncate to 6000 words max — KB limit per VOICE spec
-        return truncate_to_word_limit(full_text, limit=6000)
+        # Compress if over 6000 words — preserve meaning, reduce tokens
+        return compress_if_needed(full_text, limit=6000)
 
     except Exception as e:
         logger.error(f"DOCX extraction error: {e}")
         return ""
 
 
-def truncate_to_word_limit(text: str, limit: int = 6000) -> str:
+def compress_if_needed(text: str, limit: int = 6000) -> str:
     """
-    Truncates text to a maximum word count.
-    VOICE KB limit is 6000 words per document per spec.
+    If text is within limit — return as is.
+    If text exceeds limit — use LLMLingua to compress intelligently.
+    LLMLingua preserves key information better than hard truncation.
     """
     words = text.split()
 
+    # No compression needed
     if len(words) <= limit:
+        logger.info(f"Text within limit ({len(words)} words) — no compression needed")
         return text
 
-    truncated = " ".join(words[:limit])
     logger.info(
-        f"Text truncated to {limit} words "
-        f"(original: {len(words)} words)"
+        f"Text exceeds limit ({len(words)} words) — "
+        f"compressing with LLMLingua..."
     )
 
-    return truncated
+    try:
+        # Calculate compression ratio needed to hit target word count
+        # target_token is approximate — LLMLingua works in tokens not words
+        target_tokens = int(limit * 1.3)  # 1 word ≈ 1.3 tokens
+
+        result = compressor.compress_prompt(
+            text,
+            # How aggressively to compress — 0.5 means keep 50% of tokens
+            rate=limit / len(words),
+            # Minimum tokens to keep regardless of rate
+            target_token=target_tokens,
+            # Preserve sentence structure for readability
+            force_tokens=["\n", ".", "!", "?"],
+        )
+
+        compressed = result["compressed_prompt"]
+
+        logger.info(
+            f"LLMLingua compression complete | "
+            f"Original: {len(words)} words → "
+            f"Compressed: {len(compressed.split())} words"
+        )
+
+        return compressed
+
+    except Exception as e:
+        # If LLMLingua fails — fall back to hard truncation
+        logger.warning(f"LLMLingua compression failed: {e} — falling back to truncation")
+        return " ".join(words[:limit])
 
 
 def get_word_count(text: str) -> int:
     """
     Returns word count of extracted text.
-    Stored in DB and shown in the KB panel.
+    Stored in DB and shown in KB panel.
     """
     if not text:
         return 0

@@ -46,3 +46,5 @@ loguru
 # ── Dev / Testing ─────────────────────────────────────────────────
 pytest
 pytest-asyncio
+
+llmlingua

@@ -148,4 +148,26 @@ export default function VariantCard({ variant, onApprove, onReject }) {
                   cursor: 'pointer',
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface)')}
-                onMouseLeave={(e) => (e.currentTarget.
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+              >
+                {reason.label}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const btnStyle = {
+  padding: '5px 12px',
+  borderRadius: 'var(--radius-xl)',
+  border: '1px solid var(--sep)',
+  background: 'transparent',
+  color: 'var(--label2)',
+  fontSize: '12px',
+  fontWeight: 500,
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+};

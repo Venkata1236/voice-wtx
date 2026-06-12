@@ -12,6 +12,7 @@ import { useBrandStore } from '../store/brandStore';
 export default function WorkspacePage() {
   const [activeView, setActiveView] = useState('single');
   const [kbOpen, setKbOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
 
@@ -19,7 +20,7 @@ export default function WorkspacePage() {
   const kb = useBrandStore((state) => state.kb);
 
   // VOICE spec — Forge tab only visible if enabled in feature flags
-  // For now hardcode false until feature_flags route is wired
+  // For now hardcode true until feature_flags route is wired
   const forgeEnabled = true;
 
   const handleNewChat = () => {
@@ -99,6 +100,8 @@ export default function WorkspacePage() {
           )}
         </div>
       </div>
+
+      {settingsOpen && <SettingsPage onClose={() => setSettingsOpen(false)} />}
     </div>
   );
 }

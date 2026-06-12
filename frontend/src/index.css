@@ -55,3 +55,8 @@ body {
   font-size: 14px;
   line-height: 1.5;
 }
+
+@keyframes td {
+  0%, 60%, 100% { transform: translateY(0); opacity: .3; }
+  30% { transform: translateY(-5px); opacity: 1; }
+}

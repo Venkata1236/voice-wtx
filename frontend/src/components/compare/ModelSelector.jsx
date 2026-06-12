@@ -41,7 +41,7 @@ export default function ModelSelector({ value, onChange }) {
         <div
           style={{
             position: 'absolute',
-            top: 'calc(100% + 6px)',
+            bottom: 'calc(100% + 6px)',
             left: 0,
             width: '260px',
             background: 'rgba(255,255,255,.97)',

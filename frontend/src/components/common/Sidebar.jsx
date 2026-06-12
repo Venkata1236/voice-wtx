@@ -1,0 +1,213 @@
+import { useEffect } from 'react';
+import { useBrandStore } from '../../store/brandStore';
+import { useAuthStore } from '../../store/authStore';
+
+export default function Sidebar({ onNewChat, sessions = [], activeSessionId, onSelectSession }) {
+  const { brands, activeBrand, fetchBrands, setActiveBrand, loading } = useBrandStore();
+  const { user, logout } = useAuthStore();
+
+  useEffect(() => {
+    fetchBrands();
+  }, []);
+
+  const userInitials = user?.full_name
+    ?.split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2) || 'U';
+
+  return (
+    <aside
+      style={{
+        width: '260px',
+        background: '#1E1E2A',
+        display: 'flex',
+        flexDirection: 'column',
+        flexShrink: 0,
+        overflow: 'hidden',
+      }}
+    >
+      {/* New chat button */}
+      <div style={{ padding: '12px 12px 8px' }}>
+        <button
+          onClick={onNewChat}
+          style={{
+            width: '100%',
+            padding: '9px 14px',
+            background: 'transparent',
+            border: '1px solid rgba(232,184,75,.35)',
+            borderRadius: 'var(--radius-md)',
+            color: 'var(--accent)',
+            fontSize: '13px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '7px',
+            fontFamily: 'inherit',
+          }}
+        >
+          + New Chat
+        </button>
+      </div>
+
+      {/* Scrollable area */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '0 8px 8px' }}>
+        <div style={sectionLabelStyle}>Brands</div>
+
+        {loading && (
+          <div style={{ padding: '8px 10px', fontSize: '12px', color: 'rgba(255,255,255,.3)' }}>
+            Loading...
+          </div>
+        )}
+
+        {brands.map((brand) => {
+          const isActive = activeBrand?.id === brand.id;
+          return (
+            <div
+              key={brand.id}
+              onClick={() => setActiveBrand(brand)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '8px 10px 8px 8px',
+                borderRadius: 'var(--radius-sm)',
+                cursor: 'pointer',
+                marginBottom: '1px',
+                borderLeft: isActive ? '3px solid var(--accent)' : '3px solid transparent',
+                background: isActive ? 'rgba(232,184,75,0.10)' : 'transparent',
+              }}
+            >
+              <div
+                style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  background: brand.color || '#8e8e93',
+                  flexShrink: 0,
+                }}
+              />
+              <span
+                style={{
+                  fontSize: '13px',
+                  fontWeight: isActive ? 600 : 500,
+                  color: isActive ? 'rgba(255,255,255,0.90)' : 'rgba(255,255,255,0.50)',
+                  flex: 1,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {brand.name}
+              </span>
+            </div>
+          );
+        })}
+
+        {/* Recent sessions for active brand */}
+        {activeBrand && (
+          <>
+            <div style={sectionLabelStyle}>Recents — {activeBrand.name}</div>
+            {sessions.length === 0 && (
+              <div style={{ padding: '6px 16px 2px', fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>
+                No chats yet
+              </div>
+            )}
+            {sessions.map((session) => (
+              <div
+                key={session.id}
+                onClick={() => onSelectSession(session)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '9px',
+                  padding: '7px 10px 7px 8px',
+                  borderRadius: 'var(--radius-sm)',
+                  cursor: 'pointer',
+                  marginBottom: '1px',
+                  borderLeft: activeSessionId === session.id ? '3px solid rgba(232,184,75,.45)' : '3px solid transparent',
+                  background: activeSessionId === session.id ? 'rgba(255,255,255,.07)' : 'transparent',
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: '12px',
+                    color: activeSessionId === session.id ? 'rgba(255,255,255,.68)' : 'rgba(255,255,255,.40)',
+                    flex: 1,
+                    overflow: 'hidden',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    lineHeight: 1.45,
+                  }}
+                >
+                  {session.title || 'Untitled'}
+                  {session.is_pinned && ' 📌'}
+                </span>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+
+      {/* User footer */}
+      <div
+        style={{
+          borderTop: '1px solid rgba(255,255,255,0.08)',
+          padding: '10px 12px',
+          background: '#1A1A26',
+        }}
+      >
+        <div
+          onClick={logout}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '6px 8px',
+            borderRadius: 'var(--radius-sm)',
+            cursor: 'pointer',
+          }}
+          title="Click to log out"
+        >
+          <div
+            style={{
+              width: '28px',
+              height: '28px',
+              borderRadius: '50%',
+              background: 'var(--accent)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '11px',
+              fontWeight: 700,
+              color: '#1E1E2A',
+            }}
+          >
+            {userInitials}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}>
+              {user?.full_name}
+            </div>
+            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'capitalize' }}>
+              {user?.role?.replace('_', ' ')}
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+const sectionLabelStyle = {
+  padding: '14px 16px 4px',
+  fontSize: '10px',
+  fontWeight: 700,
+  color: 'rgba(255,255,255,0.30)',
+  letterSpacing: '0.6px',
+  textTransform: 'uppercase',
+};

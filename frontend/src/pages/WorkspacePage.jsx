@@ -31,9 +31,10 @@ useEffect(() => {
   });
 }, []);
 
-  const handleNewChat = () => {
-    setActiveSessionId(null);
-  };
+  const handleViewChange = (view) => {
+        setActiveView(view);
+        setActiveSessionId(null);
+    };
 
   const handleSelectSession = (session) => {
     setActiveSessionId(session.id);
@@ -84,7 +85,7 @@ useEffect(() => {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       <Topbar
         activeView={activeView}
-        setActiveView={setActiveView}
+        setActiveView={handleViewChange}
         onOpenKB={() => setKbOpen(!kbOpen)}
         onOpenSettings={() => setSettingsOpen(true)}
         forgeEnabled={forgeEnabled}

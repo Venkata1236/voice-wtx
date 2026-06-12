@@ -2,7 +2,56 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
+* {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+:root {
+  --bg: #ffffff;
+  --sidebar-bg: #1E1E2A;
+  --pane-bg: #ffffff;
+  --surface: #F5F5F7;
+  --surface2: #EBEBED;
+
+  --label: #1E1E2A;
+  --label2: #636370;
+  --label3: #A0A0AC;
+  --label4: #D0D0D8;
+
+  --sep: #E8E8EC;
+  --sep2: #F0F0F4;
+
+  --accent: #E8B84B;
+  --accent-light: rgba(232,184,75,0.10);
+  --accent-mid: rgba(232,184,75,0.22);
+
+  --green: #22c55e;
+  --green-bg: rgba(34,197,94,0.10);
+  --orange: #f59e0b;
+  --orange-bg: rgba(245,158,11,0.10);
+  --red: #ef4444;
+  --red-bg: rgba(239,68,68,0.10);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
+}
+
+body {
+  background: var(--bg);
+  color: var(--label);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
 }

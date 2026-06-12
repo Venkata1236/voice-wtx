@@ -6,6 +6,7 @@ import CompareTab from '../tabs/CompareTab';
 import ForgeTab from '../tabs/ForgeTab';
 import InsightsTab from '../tabs/InsightsTab';
 import KBPanel from '../components/kb/KBPanel';
+import SettingsPage from './SettingsPage';
 import { useBrandStore } from '../store/brandStore';
 
 export default function WorkspacePage() {
@@ -76,7 +77,7 @@ export default function WorkspacePage() {
         activeView={activeView}
         setActiveView={setActiveView}
         onOpenKB={() => setKbOpen(!kbOpen)}
-        onOpenSettings={() => {}}
+        onOpenSettings={() => setSettingsOpen(true)}
         forgeEnabled={forgeEnabled}
       />
 

@@ -12,7 +12,7 @@ SARVAM_BASE_URL = "https://api.sarvam.ai/v1"
 async def generate_with_sarvam(
     system_prompt: str,
     user_prompt: str,
-    model: str = "sarvam-m",
+    model: str = "sarvam-30b",
     max_tokens: int = 1000,
     temperature: float = 0.7,
 ) -> str:
@@ -47,11 +47,22 @@ async def generate_with_sarvam(
 
             response.raise_for_status()
             data = response.json()
-            content = data["choices"][0]["message"]["content"]
+
+            message = data["choices"][0]["message"]
+            content = message.get("content")
+
+            # sarvam-30b has hybrid thinking mode — sometimes the actual
+            # answer is in 'reasoning_content' if 'content' is empty
+            if not content:
+                content = message.get("reasoning_content", "")
+
+            if not content:
+                logger.error(f"Sarvam returned empty content. Full response: {data}")
+                raise ValueError("Sarvam returned empty content")
 
             logger.info(
                 f"Sarvam generation complete | "
-                f"Model: {model}"
+                f"Model: {model} | Length: {len(content)}"
             )
 
             return content

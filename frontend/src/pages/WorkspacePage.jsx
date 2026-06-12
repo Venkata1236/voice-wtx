@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Topbar from '../components/common/Topbar';
 import Sidebar from '../components/common/Sidebar';
 import SingleTab from '../tabs/SingleTab';
@@ -8,7 +8,6 @@ import InsightsTab from '../tabs/InsightsTab';
 import KBPanel from '../components/kb/KBPanel';
 import SettingsPage from './SettingsPage';
 import { useBrandStore } from '../store/brandStore';
-import { useState, useEffect } from 'react';
 import api from '../services/api';
 
 export default function WorkspacePage() {

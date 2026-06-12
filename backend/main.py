@@ -7,6 +7,7 @@ import os
 from dotenv import load_dotenv
 
 from api.routes import auth, copy, compare, forge, brands, kb, insights, export
+from api.routes.kb import feature_flags_router
 
 load_dotenv()
 
@@ -45,6 +46,7 @@ app.include_router(brands.router)
 app.include_router(kb.router)
 app.include_router(insights.router)
 app.include_router(export.router)
+app.include_router(feature_flags_router)
 
 # ── Health Check ──────────────────────────────────────────────────
 @app.get("/health")

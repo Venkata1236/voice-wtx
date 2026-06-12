@@ -18,7 +18,7 @@ MODEL_PROVIDER_MAP = {
     "gemini-1.5-flash":   generate_with_gemini,
 
     # Sarvam — lighter model
-    "sarvam-m":           generate_with_sarvam,
+    "sarvam-30b":         generate_with_sarvam,
 
     # Ollama — Forge mode only — already free
     "mistral":            generate_with_ollama,

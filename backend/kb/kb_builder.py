@@ -15,7 +15,7 @@ async def build_kb_context(brand_id: str) -> dict:
         supabase.table("brand_kb")
         .select("*")
         .eq("brand_id", brand_id)
-        .single()
+        .maybe_single()
         .execute()
     )
 

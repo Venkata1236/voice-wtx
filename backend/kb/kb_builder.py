@@ -22,6 +22,7 @@ async def build_kb_context(brand_id: str) -> dict:
     if not kb_response or not kb_response.data:
         logger.warning(f"No KB found for brand: {brand_id}")
         return _empty_kb(brand_id)
+
     kb = kb_response.data
 
     # ── Fetch approved brand document ─────────────────────────────
@@ -210,6 +211,16 @@ def format_kb_for_prompt(kb_context: dict) -> str:
             f"RECENTLY REJECTED (avoid these patterns):\n"
             + "\n".join(rejection_lines)
         )
+
+    # ── Output format instruction — prevent metadata leakage ────────
+    sections.append(
+        "OUTPUT RULES:\n"
+        "- Output ONLY the copy itself.\n"
+        "- No headings, no markdown formatting symbols (no #, no **).\n"
+        "- No word count, character count, or any meta-commentary.\n"
+        "- No preamble like 'Here is your copy:'.\n"
+        "- Just the raw copy text, ready to publish."
+    )
 
     return "\n\n".join(sections)
 

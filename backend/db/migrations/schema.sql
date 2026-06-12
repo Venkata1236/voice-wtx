@@ -6,6 +6,7 @@ create table if not exists users (
     id uuid primary key default uuid_generate_v4(),
     email text unique not null,
     full_name text not null,
+    password_hash text not null,
     role text not null check (role in ('admin', 'copy_lead', 'strategist', 'copywriter', 'brand_manager')),
     is_active boolean default true,
     created_at timestamptz default now(),

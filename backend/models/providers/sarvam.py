@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 SARVAM_API_KEY = os.getenv("SARVAM_API_KEY")
-# Sarvam uses OpenAI-compatible API endpoint
 SARVAM_BASE_URL = "https://api.sarvam.ai/v1"
 
 
@@ -28,20 +27,23 @@ async def generate_with_sarvam(
             response = await client.post(
                 f"{SARVAM_BASE_URL}/chat/completions",
                 headers={
-                    "Authorization": f"Bearer {SARVAM_API_KEY}",
+                    "api-subscription-key": SARVAM_API_KEY,
                     "Content-Type": "application/json",
                 },
                 json={
                     "model": model,
-                    "max_tokens": max_tokens,
+                    "max_completion_tokens": max_tokens,
                     "temperature": temperature,
                     "messages": [
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},
                     ],
                 },
-                timeout=30.0,
+                timeout=60.0,
             )
+
+            if response.status_code != 200:
+                logger.error(f"Sarvam API error response: {response.text}")
 
             response.raise_for_status()
             data = response.json()

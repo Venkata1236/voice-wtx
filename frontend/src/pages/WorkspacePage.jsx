@@ -31,6 +31,10 @@ useEffect(() => {
   });
 }, []);
 
+  const handleNewChat = () => {
+   setActiveSessionId(null);
+  };
+
   const handleViewChange = (view) => {
         setActiveView(view);
         setActiveSessionId(null);

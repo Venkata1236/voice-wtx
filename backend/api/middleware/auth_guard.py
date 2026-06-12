@@ -31,7 +31,6 @@ async def get_current_user(
     except JWTError:
         raise credentials_exception
 
-    # Fetch user from Supabase
     supabase = get_supabase()
     response = supabase.table("users").select("*").eq("id", user_id).single().execute()
 

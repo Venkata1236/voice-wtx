@@ -17,14 +17,40 @@ router = APIRouter(prefix="/api/compare", tags=["Compare Mode"])
 
 # ── Compare-specific payload — extends brief with two models ──────
 class ComparePayload(BriefPayload):
+    # Priority defaults — Claude vs Sarvam
+    # User can override with any ModelType value
     model_a: ModelType = ModelType.claude_haiku
-    model_b: ModelType = ModelType.gemini_flash
+    model_b: ModelType = ModelType.sarvam
 
 
 class CompareResponse(BaseModel):
     session_id: str
     variant_a: VariantResponse
     variant_b: VariantResponse
+
+
+# ── GET /api/compare/available-models ──────────────────────────────
+@router.get("/available-models")
+async def get_available_models(
+    current_user: dict = Depends(require_any),
+):
+    """
+    Returns models available for Compare mode, in priority order.
+    Frontend uses this to populate the model pill dropdowns.
+    Claude and Sarvam appear first as defaults.
+    """
+    return {
+        "priority": [
+            {"value": "claude-haiku-4-5", "label": "Claude Haiku 4.5", "provider": "Anthropic"},
+            {"value": "sarvam-m", "label": "Sarvam M", "provider": "Sarvam"},
+        ],
+        "alternatives": [
+            {"value": "gpt-4o-mini", "label": "GPT-4o Mini", "provider": "OpenAI"},
+            {"value": "gemini-1.5-flash", "label": "Gemini 1.5 Flash", "provider": "Google"},
+        ],
+        "default_a": "claude-haiku-4-5",
+        "default_b": "sarvam-m",
+    }
 
 
 # ── POST /api/compare ──────────────────────────────────────────────
@@ -37,7 +63,9 @@ async def compare_generate(
 ):
     """
     Compare mode generation.
-    Sends the same brief to two different models simultaneously.
+    Default — Claude Haiku vs Sarvam M.
+    User can override model_a / model_b to any supported model.
+    Sends the same brief to both models simultaneously.
     Returns both outputs side by side for comparison.
     Both receive identical KB context — only the model differs.
     """
@@ -49,7 +77,7 @@ async def compare_generate(
     # Get or create chat session
     session_id = payload.session_id
     if not session_id:
-        session_response = (    
+        session_response = (
             supabase_admin.table("chat_sessions")
             .insert({
                 "user_id": current_user["id"],

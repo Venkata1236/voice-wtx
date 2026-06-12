@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import api from '../services/api';
 import Topbar from '../components/common/Topbar';
 import Sidebar from '../components/common/Sidebar';
 import SingleTab from '../tabs/SingleTab';
@@ -8,13 +9,15 @@ import InsightsTab from '../tabs/InsightsTab';
 import KBPanel from '../components/kb/KBPanel';
 import SettingsPage from './SettingsPage';
 import { useBrandStore } from '../store/brandStore';
-import api from '../services/api';
 
 export default function WorkspacePage() {
   const [activeView, setActiveView] = useState('single');
   const [kbOpen, setKbOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sessions, setSessions] = useState([]);
+  const [forgeEnabled, setForgeEnabled] = useState(false);
+
+  // Per-tab session memory — each mode remembers its own session
   const [sessionIds, setSessionIds] = useState({ single: null, compare: null, forge: null });
   const activeSessionId = sessionIds[activeView] ?? null;
   const setActiveSessionId = (id) =>
@@ -23,23 +26,19 @@ export default function WorkspacePage() {
   const activeBrand = useBrandStore((state) => state.activeBrand);
   const kb = useBrandStore((state) => state.kb);
 
-  // VOICE spec — Forge tab only visible if enabled in feature flags
-  // For now hardcode true until feature_flags route is wired
-  const [forgeEnabled, setForgeEnabled] = useState(false);
-
-useEffect(() => {
-  api.get('/api/settings/feature-flags').then((res) => {
-    const forge = res.data.find((f) => f.flag_name === 'forge_mode');
-    setForgeEnabled(forge?.is_enabled || false);
-  });
-}, []);
-
-  const handleNewChat = () => {
-   setActiveSessionId(null);
-  };
+  useEffect(() => {
+    api.get('/api/settings/feature-flags').then((res) => {
+      const forge = res.data.find((f) => f.flag_name === 'forge_mode');
+      setForgeEnabled(forge?.is_enabled || false);
+    });
+  }, []);
 
   const handleNewChat = () => {
     setActiveSessionId(null);
+  };
+
+  const handleViewChange = (view) => {
+    setActiveView(view);
   };
 
   const handleSelectSession = (session) => {

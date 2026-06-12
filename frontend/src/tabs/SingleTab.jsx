@@ -4,11 +4,13 @@ import { copyService } from '../services/copyService';
 import BriefBuilder from '../components/brief/BriefBuilder';
 import FormatChips from '../components/brief/FormatChips';
 import VariantCard from '../components/variants/VariantCard';
+import ModelSelector from '../components/compare/ModelSelector';
 
 export default function SingleTab({ brand, activeSessionId, onSessionCreated }) {
   const kb = useBrandStore((state) => state.kb);
 
   const [format, setFormat] = useState('caption');
+  const [model, setModel] = useState('claude-haiku-4-5');
   const [briefText, setBriefText] = useState('');
   const [showBuilder, setShowBuilder] = useState(false);
   const [variants, setVariants] = useState([]);
@@ -52,6 +54,7 @@ export default function SingleTab({ brand, activeSessionId, onSessionCreated }) 
       const newVariants = await copyService.generate({
         brand_id: brand.id,
         format,
+        model,
         raw_brief: briefText,
         session_id: sessionId,
       });
@@ -138,7 +141,10 @@ export default function SingleTab({ brand, activeSessionId, onSessionCreated }) 
 
       {/* Input zone */}
       <div style={{ borderTop: '1px solid var(--sep)', padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <FormatChips value={format} onChange={setFormat} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <FormatChips value={format} onChange={setFormat} />
+            <ModelSelector value={model} onChange={setModel} />
+        </div>
 
         {showBuilder && <BriefBuilder onBuild={handleBuildBrief} kb={kb} />}
 

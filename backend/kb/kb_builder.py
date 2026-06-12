@@ -19,10 +19,9 @@ async def build_kb_context(brand_id: str) -> dict:
         .execute()
     )
 
-    if not kb_response.data:
+    if not kb_response or not kb_response.data:
         logger.warning(f"No KB found for brand: {brand_id}")
         return _empty_kb(brand_id)
-
     kb = kb_response.data
 
     # ── Fetch approved brand document ─────────────────────────────
@@ -32,7 +31,7 @@ async def build_kb_context(brand_id: str) -> dict:
         .eq("brand_id", brand_id)
         .eq("doc_type", "brand_document")
         .eq("status", "approved")
-        .single()
+        .maybe_single()
         .execute()
     )
 
@@ -43,7 +42,7 @@ async def build_kb_context(brand_id: str) -> dict:
         .eq("brand_id", brand_id)
         .eq("doc_type", "audience_personas")
         .eq("status", "approved")
-        .single()
+        .maybe_single()
         .execute()
     )
 
@@ -76,12 +75,12 @@ async def build_kb_context(brand_id: str) -> dict:
         supabase.table("brands")
         .select("name, category")
         .eq("id", brand_id)
-        .single()
+        .maybe_single()
         .execute()
     )
 
-    brand_name = brand_response.data.get("name", "Unknown Brand") if brand_response.data else "Unknown Brand"
-    brand_category = brand_response.data.get("category", "") if brand_response.data else ""
+    brand_name = brand_response.data.get("name", "Unknown Brand") if brand_response and brand_response.data else "Unknown Brand"
+    brand_category = brand_response.data.get("category", "") if brand_response and brand_response.data else ""
 
     # ── Assemble full KB context dict ─────────────────────────────
     context = {
@@ -102,13 +101,13 @@ async def build_kb_context(brand_id: str) -> dict:
         # Uploaded brand guidelines document
         "brand_document": (
             brand_doc.data.get("extracted_text", "")
-            if brand_doc.data else ""
+            if brand_doc and brand_doc.data else ""
         ),
 
         # Uploaded audience personas document
         "audience_personas": (
             personas_doc.data.get("extracted_text", "")
-            if personas_doc.data else ""
+            if personas_doc and personas_doc.data else ""
         ),
 
         # Last 30 approved copy examples — AI learns from these

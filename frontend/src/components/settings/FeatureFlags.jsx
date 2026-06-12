@@ -6,9 +6,20 @@ export default function FeatureFlags() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Note: requires a GET endpoint for feature flags - using direct table read via KB route as fallback
-    setLoading(false);
+    loadFlags();
   }, []);
+
+  const loadFlags = async () => {
+    try {
+      const response = await api.get('/api/settings/feature-flags');
+      const forge = response.data.find((f) => f.flag_name === 'forge_mode');
+      setForgeEnabled(forge?.is_enabled || false);
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleToggle = async () => {
     const newValue = !forgeEnabled;

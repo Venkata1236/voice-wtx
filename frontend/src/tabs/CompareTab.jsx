@@ -1,13 +1,18 @@
 import { useState, useEffect } from 'react';
 import { compareService } from '../services/compareService';
 import { copyService } from '../services/copyService';
+import { useBrandStore } from '../store/brandStore';
 import FormatChips from '../components/brief/FormatChips';
+import BriefBuilder from '../components/brief/BriefBuilder';
 import ModelSelector from '../components/compare/ModelSelector';
 import VariantCard from '../components/variants/VariantCard';
 
 export default function CompareTab({ brand, activeSessionId, onSessionCreated }) {
+  const kb = useBrandStore((state) => state.kb);
+
   const [format, setFormat] = useState('caption');
   const [briefText, setBriefText] = useState('');
+  const [showBuilder, setShowBuilder] = useState(false);
   const [modelA, setModelA] = useState('claude-haiku-4-5');
   const [modelB, setModelB] = useState('sarvam-30b');
   const [variantA, setVariantA] = useState(null);
@@ -32,6 +37,19 @@ export default function CompareTab({ brand, activeSessionId, onSessionCreated })
       setBriefText('');
     }
   }, [activeSessionId]);
+
+  const handleBuildBrief = (fields) => {
+    const lines = [`Format: ${format}`];
+    if (fields.platform) lines.push(`Platform: ${fields.platform}`);
+    if (fields.objective) lines.push(`Objective: ${fields.objective}`);
+    if (fields.hero_product) lines.push(`Hero Product: ${fields.hero_product}`);
+    if (fields.cta) lines.push(`Call to Action: ${fields.cta}`);
+    if (fields.tone_override) lines.push(`Tone Override: ${fields.tone_override}`);
+    if (fields.length) lines.push(`Length: ${fields.length}`);
+    if (fields.notes) lines.push(`Notes: ${fields.notes}`);
+    setBriefText(lines.join('\n'));
+    setShowBuilder(false);
+  };
 
   const handleGenerate = async () => {
     if (!briefText.trim()) return;
@@ -83,7 +101,6 @@ export default function CompareTab({ brand, activeSessionId, onSessionCreated })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      {/* Two panes side by side */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         <div style={paneStyle}>
           <div style={paneHeaderStyle}>
@@ -112,9 +129,10 @@ export default function CompareTab({ brand, activeSessionId, onSessionCreated })
         </div>
       </div>
 
-      {/* Input zone */}
       <div style={{ borderTop: '1px solid var(--sep)', padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
         <FormatChips value={format} onChange={setFormat} />
+
+        {showBuilder && <BriefBuilder onBuild={handleBuildBrief} kb={kb} />}
 
         {error && (
           <div style={{ padding: '8px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--red-bg)', color: 'var(--red)', fontSize: '12px' }}>
@@ -123,6 +141,23 @@ export default function CompareTab({ brand, activeSessionId, onSessionCreated })
         )}
 
         <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            onClick={() => setShowBuilder(!showBuilder)}
+            style={{
+              padding: '8px 14px',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--sep)',
+              background: showBuilder ? 'var(--surface)' : 'transparent',
+              fontSize: '13px',
+              fontWeight: 500,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Brief Builder
+          </button>
+
           <textarea
             value={briefText}
             onChange={(e) => setBriefText(e.target.value)}
@@ -145,6 +180,7 @@ export default function CompareTab({ brand, activeSessionId, onSessionCreated })
               }
             }}
           />
+
           <button
             onClick={handleGenerate}
             disabled={loading || !briefText.trim()}

@@ -15,7 +15,10 @@ export default function WorkspacePage() {
   const [kbOpen, setKbOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sessions, setSessions] = useState([]);
-  const [activeSessionId, setActiveSessionId] = useState(null);
+  const [sessionIds, setSessionIds] = useState({ single: null, compare: null, forge: null });
+  const activeSessionId = sessionIds[activeView] ?? null;
+  const setActiveSessionId = (id) =>
+    setSessionIds((prev) => ({ ...prev, [activeView]: id }));
 
   const activeBrand = useBrandStore((state) => state.activeBrand);
   const kb = useBrandStore((state) => state.kb);
@@ -35,10 +38,9 @@ useEffect(() => {
    setActiveSessionId(null);
   };
 
-  const handleViewChange = (view) => {
-        setActiveView(view);
-        setActiveSessionId(null);
-    };
+  const handleNewChat = () => {
+    setActiveSessionId(null);
+  };
 
   const handleSelectSession = (session) => {
     setActiveSessionId(session.id);

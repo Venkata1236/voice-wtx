@@ -143,7 +143,7 @@ export default function SingleTab({ brand, activeSessionId, onSessionCreated }) 
       <div style={{ borderTop: '1px solid var(--sep)', padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <FormatChips value={format} onChange={setFormat} />
-            <ModelSelector value={model} onChange={setModel} />
+            <ModelSelector value={model} onChange={setModel} openUp={true} />
         </div>
 
         {showBuilder && <BriefBuilder onBuild={handleBuildBrief} kb={kb} />}

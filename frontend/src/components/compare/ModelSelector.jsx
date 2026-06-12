@@ -11,7 +11,7 @@ const MODELS = {
 
 const ALL_MODELS = [...MODELS.priority, ...MODELS.alternatives];
 
-export default function ModelSelector({ value, onChange }) {
+export default function ModelSelector({ value, onChange, openUp = false }) {
   const [open, setOpen] = useState(false);
   const current = ALL_MODELS.find((m) => m.value === value) || ALL_MODELS[0];
 
@@ -41,7 +41,7 @@ export default function ModelSelector({ value, onChange }) {
         <div
           style={{
             position: 'absolute',
-            bottom: 'calc(100% + 6px)',
+            ...(openUp ? { bottom: 'calc(100% + 6px)' } : { top: 'calc(100% + 6px)' }),
             left: 0,
             width: '260px',
             background: 'rgba(255,255,255,.97)',

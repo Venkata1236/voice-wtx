@@ -9,7 +9,7 @@ export default function CompareTab({ brand, activeSessionId, onSessionCreated })
   const [format, setFormat] = useState('caption');
   const [briefText, setBriefText] = useState('');
   const [modelA, setModelA] = useState('claude-haiku-4-5');
-  const [modelB, setModelB] = useState('sarvam-m');
+  const [modelB, setModelB] = useState('sarvam-30b');
   const [variantA, setVariantA] = useState(null);
   const [variantB, setVariantB] = useState(null);
   const [loading, setLoading] = useState(false);

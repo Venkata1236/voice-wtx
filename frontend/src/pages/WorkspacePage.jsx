@@ -8,6 +8,8 @@ import InsightsTab from '../tabs/InsightsTab';
 import KBPanel from '../components/kb/KBPanel';
 import SettingsPage from './SettingsPage';
 import { useBrandStore } from '../store/brandStore';
+import { useState, useEffect } from 'react';
+import api from '../services/api';
 
 export default function WorkspacePage() {
   const [activeView, setActiveView] = useState('single');
@@ -21,7 +23,14 @@ export default function WorkspacePage() {
 
   // VOICE spec — Forge tab only visible if enabled in feature flags
   // For now hardcode true until feature_flags route is wired
-  const forgeEnabled = true;
+  const [forgeEnabled, setForgeEnabled] = useState(false);
+
+useEffect(() => {
+  api.get('/api/settings/feature-flags').then((res) => {
+    const forge = res.data.find((f) => f.flag_name === 'forge_mode');
+    setForgeEnabled(forge?.is_enabled || false);
+  });
+}, []);
 
   const handleNewChat = () => {
     setActiveSessionId(null);

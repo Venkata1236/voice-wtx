@@ -14,7 +14,7 @@ class FormatType(str, Enum):
 class ModelType(str, Enum):
     # Priority models — shown first in UI
     claude_haiku = "claude-haiku-4-5"
-    sarvam = "sarvam-m"
+    sarvam = "sarvam-30b"
 
     # Alternative models — available if user switches
     gpt4o_mini = "gpt-4o-mini"

@@ -301,3 +301,61 @@ async def get_approval_queue(
     )
 
     return response.data
+
+# ── Feature Flags ───────────────────────────────────────────────────
+from schemas.feature_flags import FeatureFlagUpdate, FeatureFlagResponse
+from api.middleware.role_guard import require_admin
+
+
+feature_flags_router = APIRouter(prefix="/api/settings", tags=["Feature Flags"])
+
+
+# ── GET /api/settings/feature-flags ───────────────────────────────────
+@feature_flags_router.get("/feature-flags", response_model=list[FeatureFlagResponse])
+async def get_feature_flags(
+    current_user: dict = Depends(require_any),
+):
+    """
+    Returns all feature flags.
+    Used by frontend to check if Forge mode tab should be visible.
+    """
+    supabase = get_supabase()
+
+    response = supabase.table("feature_flags").select("*").execute()
+
+    return [FeatureFlagResponse(**flag) for flag in response.data]
+
+
+# ── PATCH /api/settings/feature-flags/{flag_name} ─────────────────────
+@feature_flags_router.patch("/feature-flags/{flag_name}", response_model=FeatureFlagResponse)
+async def update_feature_flag(
+    flag_name: str,
+    payload: FeatureFlagUpdate,
+    # Only admin can toggle feature flags
+    current_user: dict = Depends(require_admin),
+):
+    """
+    Admin toggles a feature flag — e.g. forge_mode.
+    Forge tab appears/disappears immediately for all users.
+    """
+    supabase_admin = get_supabase_admin()
+
+    response = (
+        supabase_admin.table("feature_flags")
+        .update({"is_enabled": payload.is_enabled})
+        .eq("flag_name", flag_name)
+        .execute()
+    )
+
+    if not response.data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Feature flag not found",
+        )
+
+    logger.info(
+        f"Feature flag updated: {flag_name} = {payload.is_enabled} | "
+        f"By: {current_user['email']}"
+    )
+
+    return FeatureFlagResponse(**response.data[0])

@@ -28,6 +28,7 @@ async def generate_node(state: GraphState) -> GraphState:
             model=state["model"],
             system_prompt=state["system_prompt"],
             user_prompt=state["user_prompt"],
+            temperature=state.get("temperature", 0.7),   # ← add this
         )
 
         logger.info(

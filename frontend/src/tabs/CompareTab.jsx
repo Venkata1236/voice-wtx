@@ -6,6 +6,7 @@ import FormatChips from '../components/brief/FormatChips';
 import BriefBuilder from '../components/brief/BriefBuilder';
 import ModelSelector from '../components/compare/ModelSelector';
 import VariantCard from '../components/variants/VariantCard';
+import MicButton from '../components/common/MicButton';
 
 export default function CompareTab({ brand, activeSessionId, onSessionCreated }) {
   const kb = useBrandStore((state) => state.kb);
@@ -180,7 +181,7 @@ export default function CompareTab({ brand, activeSessionId, onSessionCreated })
               }
             }}
           />
-
+          <MicButton onTranscript={(text) => setBriefText((prev) => prev ? prev + ' ' + text : text)} />
           <button
             onClick={handleGenerate}
             disabled={loading || !briefText.trim()}

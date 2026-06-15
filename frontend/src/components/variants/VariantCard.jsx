@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 const REJECTION_REASONS = [
   { value: 'off_brand_tone', label: 'Off-brand tone' },
   { value: 'wrong_format', label: 'Wrong format' },
@@ -9,16 +11,14 @@ const REJECTION_REASONS = [
   { value: 'client_preference', label: 'Client preference' },
 ];
 
-import { useState } from 'react';
-
 export default function VariantCard({ variant, onApprove, onReject }) {
   const [showRejectMenu, setShowRejectMenu] = useState(false);
 
-  const scoreClass = variant.score >= 80 ? 'hi' : variant.score >= 60 ? 'md' : 'lo';
-  const scoreColor = scoreClass === 'hi' ? 'var(--green)' : scoreClass === 'md' ? 'var(--orange)' : 'var(--red)';
+  const scoreColor = variant.score >= 80 ? 'var(--green)' : variant.score >= 60 ? 'var(--orange)' : 'var(--red)';
 
   const isApproved = variant.status === 'approved';
   const isRejected = variant.status === 'rejected';
+  const isStreaming = variant.streaming === true;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(variant.content);
@@ -51,22 +51,41 @@ export default function VariantCard({ variant, onApprove, onReject }) {
         <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--label3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           {variant.model}
         </span>
-        <span style={{ fontSize: '12px', fontWeight: 600, color: scoreColor }}>
-          {variant.score}%
-        </span>
+        {!isStreaming && (
+          <span style={{ fontSize: '12px', fontWeight: 600, color: scoreColor }}>
+            {variant.score}%
+          </span>
+        )}
       </div>
 
       {/* Body */}
-      <div style={{ padding: '14px 14px 10px', fontSize: '13.5px', color: 'var(--label2)', lineHeight: 1.75 }}>
-        {variant.content}
+      <div style={{ padding: '14px 14px 10px', fontSize: '13.5px', color: 'var(--label2)', lineHeight: 1.75, minHeight: '60px' }}>
+        {variant.content || (isStreaming && (
+          <span style={{ color: 'var(--label3)', fontSize: '12px' }}>Generating...</span>
+        ))}
+        {isStreaming && variant.content && (
+          <span
+            style={{
+              display: 'inline-block',
+              width: '2px',
+              height: '14px',
+              background: 'var(--accent)',
+              marginLeft: '2px',
+              animation: 'blink 1s step-end infinite',
+              verticalAlign: 'text-bottom',
+            }}
+          />
+        )}
       </div>
 
-      {/* Keywords */}
-      {variant.keywords && variant.keywords.length > 0 && (
+      {/* Keywords — shown only after streaming is done */}
+      {!isStreaming && variant.keywords && variant.keywords.length > 0 && (
         <div style={{ padding: '0 14px 10px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
           {variant.keywords.map((kw, i) => (
             <span
               key={i}
+              onClick={() => navigator.clipboard.writeText(kw)}
+              title="Click to copy"
               style={{
                 padding: '3px 8px',
                 borderRadius: 'var(--radius-md)',
@@ -76,8 +95,6 @@ export default function VariantCard({ variant, onApprove, onReject }) {
                 fontWeight: 500,
                 cursor: 'pointer',
               }}
-              onClick={() => navigator.clipboard.writeText(kw)}
-              title="Click to copy"
             >
               {kw}
             </span>
@@ -105,81 +122,83 @@ export default function VariantCard({ variant, onApprove, onReject }) {
         </div>
       )}
 
-      {/* Footer actions */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          padding: '9px 14px',
-          borderTop: '1px solid var(--sep)',
-          gap: '6px',
-          position: 'relative',
-        }}
-      >
-        <button onClick={handleCopy} style={btnStyle}>
-          Copy
-        </button>
+      {/* Footer actions — hidden while streaming */}
+      {!isStreaming && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            padding: '9px 14px',
+            borderTop: '1px solid var(--sep)',
+            gap: '6px',
+            position: 'relative',
+          }}
+        >
+          <button onClick={handleCopy} style={btnStyle}>
+            Copy
+          </button>
 
-        {!isRejected && (
-          <>
-            <button
-              onClick={() => setShowRejectMenu(!showRejectMenu)}
-              style={{ ...btnStyle, borderColor: 'rgba(239,68,68,.3)', color: 'var(--red)', background: 'var(--red-bg)' }}
-            >
-              Reject
-            </button>
-            <button
-              onClick={() => onApprove(variant.id)}
+          {!isRejected && (
+            <>
+              <button
+                onClick={() => setShowRejectMenu(!showRejectMenu)}
+                style={{ ...btnStyle, borderColor: 'rgba(239,68,68,.3)', color: 'var(--red)', background: 'var(--red-bg)' }}
+              >
+                Reject
+              </button>
+              <button
+                onClick={() => onApprove(variant.id)}
+                style={{
+                  ...btnStyle,
+                  borderColor: 'rgba(34,197,94,.35)',
+                  color: isApproved ? '#fff' : 'var(--green)',
+                  background: isApproved ? 'var(--green)' : 'var(--green-bg)',
+                }}
+              >
+                {isApproved ? 'Approved' : 'Approve'}
+              </button>
+            </>
+          )}
+
+          {showRejectMenu && (
+            <div
               style={{
-                ...btnStyle,
-                borderColor: 'rgba(34,197,94,.35)',
-                color: isApproved ? '#fff' : 'var(--green)',
-                background: isApproved ? 'var(--green)' : 'var(--green-bg)',
+                position: 'absolute',
+                bottom: 'calc(100% + 4px)',
+                right: '14px',
+                background: '#fff',
+                border: '1px solid var(--sep)',
+                borderRadius: 'var(--radius-md)',
+                boxShadow: 'var(--shadow-md)',
+                padding: '6px',
+                zIndex: 10,
+                minWidth: '180px',
               }}
             >
-              {isApproved ? 'Approved' : 'Approve'}
-            </button>
-          </>
-        )}
-
-        {showRejectMenu && (
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 'calc(100% + 4px)',
-              right: '14px',
-              background: '#fff',
-              border: '1px solid var(--sep)',
-              borderRadius: 'var(--radius-md)',
-              boxShadow: 'var(--shadow-md)',
-              padding: '6px',
-              zIndex: 10,
-              minWidth: '180px',
-            }}
-          >
-            {REJECTION_REASONS.map((reason) => (
-              <div
-                key={reason.value}
-                onClick={() => {
-                  onReject(variant.id, reason.value);
-                  setShowRejectMenu(false);
-                }}
-                style={{
-                  padding: '7px 10px',
-                  fontSize: '12px',
-                  borderRadius: 'var(--radius-sm)',
-                  cursor: 'pointer',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface)')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-              >
-                {reason.label}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              {REJECTION_REASONS.map((reason) => (
+                <div
+                  key={reason.value}
+                  onClick={() => {
+                    onReject(variant.id, reason.value);
+                    setShowRejectMenu(false);
+                  }}
+                  style={{
+                    padding: '7px 10px',
+                    fontSize: '12px',
+                    borderRadius: 'var(--radius-sm)',
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  {reason.label}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

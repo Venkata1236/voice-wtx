@@ -198,7 +198,7 @@ export default function SingleTab({ brand, activeSessionId, onSessionCreated }) 
                 onClick={() => setShowBuilder(!showBuilder)}
                 active={showBuilder}
               >
-                📋
+                Brief Builder
               </ToolBtn>
             </div>
 
@@ -260,16 +260,17 @@ function ToolBtn({ children, onClick, active, title }) {
       onClick={onClick}
       title={title}
       style={{
-        width: '30px',
-        height: '30px',
+        padding: '5px 10px',
         borderRadius: 'var(--radius-sm)',
-        border: 'none',
+        border: '1px solid var(--sep)',
         background: active ? 'var(--surface)' : 'transparent',
         cursor: 'pointer',
-        fontSize: '14px',
+        fontSize: '12px',
+        fontWeight: 500,
+        fontFamily: 'inherit',
+        color: 'var(--label2)',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center',
       }}
     >
       {children}

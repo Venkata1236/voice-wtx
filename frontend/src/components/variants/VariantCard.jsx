@@ -57,9 +57,33 @@ export default function VariantCard({ variant, onApprove, onReject }) {
       </div>
 
       {/* Body */}
-      <div style={{ padding: '14px', fontSize: '13.5px', color: 'var(--label2)', lineHeight: 1.75 }}>
+      <div style={{ padding: '14px 14px 10px', fontSize: '13.5px', color: 'var(--label2)', lineHeight: 1.75 }}>
         {variant.content}
       </div>
+
+      {/* Keywords */}
+      {variant.keywords && variant.keywords.length > 0 && (
+        <div style={{ padding: '0 14px 10px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+          {variant.keywords.map((kw, i) => (
+            <span
+              key={i}
+              style={{
+                padding: '3px 8px',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--accent-light)',
+                color: '#B8890A',
+                fontSize: '11px',
+                fontWeight: 500,
+                cursor: 'pointer',
+              }}
+              onClick={() => navigator.clipboard.writeText(kw)}
+              title="Click to copy"
+            >
+              {kw}
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Rejection reason banner */}
       {isRejected && variant.rejection_reason && (

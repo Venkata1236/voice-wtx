@@ -165,23 +165,36 @@ async def generate_copy_stream(
         system_prompt = format_kb_for_prompt(kb_context)
 
         for variant_index in range(3):
-            # Signal start of new variant
             yield f"data: {json.dumps({'type': 'variant_start', 'index': variant_index})}\n\n"
 
             full_content = ""
 
-            # Stream tokens
             async for chunk in stream_from_model(
                 model=payload.model.value,
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
             ):
                 full_content += chunk
-                yield f"data: {json.dumps({'type': 'token', 'index': variant_index, 'text': chunk})}\n\n"
+                # Only send clean content tokens — strip KEYWORDS line from stream
+                if 'KEYWORDS:' not in full_content:
+                    yield f"data: {json.dumps({'type': 'token', 'index': variant_index, 'text': chunk})}\n\n"
+                else:
+                    # We hit the KEYWORDS line — send only the copy part of this chunk
+                    copy_part = full_content.split('KEYWORDS:')[0]
+                    already_sent = full_content.replace(chunk, '')
+                    new_copy = copy_part[len(already_sent):]
+                    if new_copy:
+                        yield f"data: {json.dumps({'type': 'token', 'index': variant_index, 'text': new_copy})}\n\n"
 
-            # Parse copy and keywords from full content
+            # Parse copy and keywords after full response received
             from agents.langgraph.nodes.format_node import parse_copy_and_keywords
             final_copy, keywords = parse_copy_and_keywords(full_content)
+
+            logger.info(
+                f"Stream variant {variant_index} complete | "
+                f"Keywords: {keywords} | "
+                f"Copy length: {len(final_copy)}"
+            )
 
             # Save to database
             try:

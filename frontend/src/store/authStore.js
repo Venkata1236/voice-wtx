@@ -22,6 +22,7 @@ export const useAuthStore = create((set, get) => ({
   logout: () => {
     localStorage.removeItem('voice_token');
     localStorage.removeItem('voice_user');
+    localStorage.removeItem('voice_session_ids');
     set({ user: null, token: null, isAuthenticated: false });
   },
 

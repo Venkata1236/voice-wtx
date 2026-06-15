@@ -11,15 +11,14 @@ export default function SingleTab({ brand, activeSessionId, onSessionCreated }) 
   const kb = useBrandStore((state) => state.kb);
 
   const [format, setFormat] = useState('caption');
-  const [model, setModel] = useState('claude-haiku-4-5');
   const [briefText, setBriefText] = useState('');
   const [showBuilder, setShowBuilder] = useState(false);
+  const [model, setModel] = useState('claude-haiku-4-5');
   const [variants, setVariants] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [sessionId, setSessionId] = useState(activeSessionId);
 
-  // Load variants when switching to an existing session
   useEffect(() => {
     if (activeSessionId) {
       setSessionId(activeSessionId);
@@ -40,7 +39,6 @@ export default function SingleTab({ brand, activeSessionId, onSessionCreated }) 
     if (fields.tone_override) lines.push(`Tone Override: ${fields.tone_override}`);
     if (fields.length) lines.push(`Length: ${fields.length}`);
     if (fields.notes) lines.push(`Notes: ${fields.notes}`);
-
     setBriefText(lines.join('\n'));
     setShowBuilder(false);
   };
@@ -76,7 +74,6 @@ export default function SingleTab({ brand, activeSessionId, onSessionCreated }) 
 
   const handleApprove = async (variantId) => {
     await copyService.approve(variantId, brand.id);
-    // Refresh variants to reflect new status
     if (sessionId) {
       const updated = await copyService.getSessionVariants(sessionId);
       setVariants(updated);
@@ -86,8 +83,7 @@ export default function SingleTab({ brand, activeSessionId, onSessionCreated }) 
   const handleReject = async (variantId, reason) => {
     setLoading(true);
     try {
-      const revised = await copyService.reject(variantId, brand.id, reason);
-      // Refresh to show rejected card + new revised variants
+      await copyService.reject(variantId, brand.id, reason);
       const updated = await copyService.getSessionVariants(sessionId);
       setVariants(updated);
     } catch (err) {
@@ -125,16 +121,7 @@ export default function SingleTab({ brand, activeSessionId, onSessionCreated }) 
         )}
 
         {error && (
-          <div
-            style={{
-              marginTop: '12px',
-              padding: '10px 12px',
-              borderRadius: 'var(--radius-sm)',
-              background: 'var(--red-bg)',
-              color: 'var(--red)',
-              fontSize: '12px',
-            }}
-          >
+          <div style={{ marginTop: '12px', padding: '10px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--red-bg)', color: 'var(--red)', fontSize: '12px' }}>
             {error}
           </div>
         )}
@@ -142,45 +129,49 @@ export default function SingleTab({ brand, activeSessionId, onSessionCreated }) 
 
       {/* Input zone */}
       <div style={{ borderTop: '1px solid var(--sep)', padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <FormatChips value={format} onChange={setFormat} />
-            <ModelSelector value={model} onChange={setModel} openUp={true} />
+          <FormatChips value={format} onChange={setFormat} />
+          <ModelSelector value={model} onChange={setModel} openUp={true} />
         </div>
 
         {showBuilder && <BriefBuilder onBuild={handleBuildBrief} kb={kb} />}
 
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button
-            onClick={() => setShowBuilder(!showBuilder)}
-            style={{
-              padding: '8px 14px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--sep)',
-              background: showBuilder ? 'var(--surface)' : 'transparent',
-              fontSize: '13px',
-              fontWeight: 500,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            Brief Builder
-          </button>
+        {error && (
+          <div style={{ padding: '8px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--red-bg)', color: 'var(--red)', fontSize: '12px' }}>
+            {error}
+          </div>
+        )}
 
+        {/* Claude-style input bar */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            border: '1px solid var(--sep)',
+            borderRadius: 'var(--radius-lg)',
+            background: '#fff',
+            boxShadow: 'var(--shadow-sm)',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Text area */}
           <textarea
             value={briefText}
             onChange={(e) => setBriefText(e.target.value)}
-            placeholder="Type your brief, or use the Brief Builder..."
-            rows={2}
+            placeholder="Describe your brief... (e.g. Caption for Alphonso mango launch on Instagram, Hinglish, urgent tone)"
+            rows={3}
             style={{
-              flex: 1,
-              padding: '8px 12px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--sep)',
+              width: '100%',
+              padding: '14px 16px 8px',
+              border: 'none',
+              outline: 'none',
               fontSize: '14px',
               fontFamily: 'inherit',
               resize: 'none',
-              outline: 'none',
+              background: 'transparent',
+              color: 'var(--label)',
+              lineHeight: 1.6,
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -189,25 +180,59 @@ export default function SingleTab({ brand, activeSessionId, onSessionCreated }) 
               }
             }}
           />
-          <MicButton onTranscript={(text) => setBriefText((prev) => prev ? prev + ' ' + text : text)} />
-          <button
-            onClick={handleGenerate}
-            disabled={loading || !briefText.trim()}
+
+          {/* Bottom toolbar inside bar */}
+          <div
             style={{
-              padding: '8px 18px',
-              borderRadius: 'var(--radius-md)',
-              border: 'none',
-              background: '#1E1E2A',
-              color: '#fff',
-              fontSize: '13px',
-              fontWeight: 600,
-              cursor: loading ? 'default' : 'pointer',
-              opacity: loading || !briefText.trim() ? 0.5 : 1,
-              fontFamily: 'inherit',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '8px 12px',
+              borderTop: '1px solid var(--sep2)',
             }}
           >
-            Generate
-          </button>
+            {/* Left tools */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <ToolBtn
+                title="Brief Builder"
+                onClick={() => setShowBuilder(!showBuilder)}
+                active={showBuilder}
+              >
+                📋
+              </ToolBtn>
+            </div>
+
+            {/* Right tools */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <MicButton
+                onTranscript={(text) =>
+                  setBriefText((prev) => (prev ? prev + ' ' + text : text))
+                }
+              />
+              <button
+                onClick={handleGenerate}
+                disabled={loading || !briefText.trim()}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  border: 'none',
+                  background: briefText.trim() && !loading ? '#1E1E2A' : 'var(--surface)',
+                  color: briefText.trim() && !loading ? '#fff' : 'var(--label3)',
+                  cursor: loading ? 'default' : briefText.trim() ? 'pointer' : 'default',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '14px',
+                  flexShrink: 0,
+                  transition: 'all .15s',
+                }}
+                title="Generate (Enter)"
+              >
+                ↑
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -226,5 +251,28 @@ function Dot({ delay }) {
         animationDelay: `${delay}s`,
       }}
     />
+  );
+}
+
+function ToolBtn({ children, onClick, active, title }) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      style={{
+        width: '30px',
+        height: '30px',
+        borderRadius: 'var(--radius-sm)',
+        border: 'none',
+        background: active ? 'var(--surface)' : 'transparent',
+        cursor: 'pointer',
+        fontSize: '14px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      {children}
+    </button>
   );
 }

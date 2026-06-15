@@ -119,7 +119,9 @@ async def generate_copy(
             })
             .execute()
         )
-        variants.append(VariantResponse(**variant_response.data[0]))
+        variant_obj = VariantResponse.from_db(variant_response.data[0])
+        variant_obj.keywords = result.get("keywords", [])
+        variants.append(variant_obj)
 
     return variants
 
@@ -198,6 +200,7 @@ async def generate_copy_stream(
 
             # Save to database
             try:
+                import json as json_lib
                 variant_response = (
                     supabase_admin.table("copy_variants")
                     .insert({
@@ -209,6 +212,7 @@ async def generate_copy_stream(
                         "content": final_copy,
                         "score": 70,
                         "status": "pending",
+                        "keywords": json_lib.dumps(keywords),
                     })
                     .execute()
                 )
@@ -417,7 +421,7 @@ async def get_session_variants(
         .execute()
     )
 
-    return [VariantResponse(**v) for v in response.data]
+    return [VariantResponse.from_db(v) for v in response.data]
 
 
 # ── GET /api/copy/sessions/{brand_id} ─────────────────────────────

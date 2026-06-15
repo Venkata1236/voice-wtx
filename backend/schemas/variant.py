@@ -37,6 +37,16 @@ class VariantResponse(BaseModel):
     created_at: datetime
     keywords: Optional[list] = []
 
+    @classmethod
+    def from_db(cls, data: dict):
+        import json
+        if isinstance(data.get('keywords'), str):
+            try:
+                data['keywords'] = json.loads(data['keywords'])
+            except Exception:
+                data['keywords'] = []
+        return cls(**data)
+
     class Config:
         from_attributes = True
 

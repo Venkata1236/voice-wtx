@@ -44,33 +44,72 @@ export default function SingleTab({ brand, activeSessionId, onSessionCreated }) 
   };
 
   const handleGenerate = async () => {
-    if (!briefText.trim()) return;
+  if (!briefText.trim()) return;
 
-    setLoading(true);
-    setError('');
+  setLoading(true);
+  setError('');
 
-    try {
-      const newVariants = await copyService.generate({
+  // Initialize 3 empty streaming variants
+  const streamingVariants = [
+    { id: null, content: '', keywords: [], score: 70, status: 'pending', model: model, format, brand_id: brand.id, session_id: null, streaming: true },
+    { id: null, content: '', keywords: [], score: 70, status: 'pending', model: model, format, brand_id: brand.id, session_id: null, streaming: true },
+    { id: null, content: '', keywords: [], score: 70, status: 'pending', model: model, format, brand_id: brand.id, session_id: null, streaming: true },
+  ];
+  setVariants([...streamingVariants]);
+
+  try {
+    await copyService.generateStream(
+      {
         brand_id: brand.id,
         format,
         model,
         raw_brief: briefText,
         session_id: sessionId,
-      });
-
-      setVariants(newVariants);
-
-      if (!sessionId && newVariants.length > 0) {
-        const newSessionId = newVariants[0].session_id;
-        setSessionId(newSessionId);
-        onSessionCreated(newSessionId);
+      },
+      {
+        onSession: (id) => {
+          setSessionId(id);
+          onSessionCreated(id);
+        },
+        onVariantStart: (index) => {
+          // variant card already shown as empty
+        },
+        onToken: (index, text) => {
+          setVariants((prev) => {
+            const updated = [...prev];
+            updated[index] = {
+              ...updated[index],
+              content: updated[index].content + text,
+            };
+            return updated;
+          });
+        },
+        onVariantDone: (data) => {
+          setVariants((prev) => {
+            const updated = [...prev];
+            updated[data.index] = {
+              ...updated[data.index],
+              id: data.variant_id,
+              keywords: data.keywords || [],
+              model: data.model,
+              format: data.format,
+              brand_id: data.brand_id,
+              session_id: data.session_id,
+              streaming: false,
+            };
+            return updated;
+          });
+        },
+        onDone: () => {
+          setLoading(false);
+        },
       }
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Generation failed. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+    );
+  } catch (err) {
+    setError('Generation failed. Please try again.');
+    setLoading(false);
+  }
+};
 
   const handleApprove = async (variantId) => {
     await copyService.approve(variantId, brand.id);

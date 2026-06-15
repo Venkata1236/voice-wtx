@@ -53,6 +53,7 @@ async def run_single_generation(
     format: str,
     model: str,
     session_id: str = None,
+    temperature: float = 0.7,
 ) -> dict:
     """
     Runs the full single generation pipeline.
@@ -67,6 +68,7 @@ async def run_single_generation(
         "format": format,
         "model": model,
         "session_id": session_id,
+        "temperature": temperature,   # ← add this
         "kb_context": None,
         "system_prompt": None,
         "generated_copy": None,

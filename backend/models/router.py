@@ -56,3 +56,51 @@ async def route_to_model(
         max_tokens=max_tokens,
         temperature=temperature,
     )
+    
+from models.providers.anthropic import stream_with_claude
+from models.providers.sarvam import stream_with_sarvam
+
+# ── Streaming provider map ─────────────────────────────────────────
+STREAM_PROVIDER_MAP = {
+    "claude-haiku-4-5":  stream_with_claude,
+    "gpt-4o-mini":       None,  # add later
+    "gemini-1.5-flash":  None,  # add later
+    "sarvam-30b":        stream_with_sarvam,
+    "mistral":           None,  # Forge mode — no streaming needed
+    "gemma":             None,
+}
+
+
+async def stream_from_model(
+    model: str,
+    system_prompt: str,
+    user_prompt: str,
+    max_tokens: int = 1000,
+    temperature: float = 0.7,
+):
+    """
+    Streams response from the correct provider.
+    Falls back to non-streaming if provider doesn't support it.
+    """
+    stream_fn = STREAM_PROVIDER_MAP.get(model)
+
+    if not stream_fn:
+        # Fallback — generate fully then yield all at once
+        result = await route_to_model(
+            model=model,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+        yield result
+        return
+
+    async for chunk in stream_fn(
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        model=model,
+        max_tokens=max_tokens,
+        temperature=temperature,
+    ):
+        yield chunk

@@ -102,6 +102,8 @@ export default function CompareTab({ brand, activeSessionId, onSessionCreated })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+
+      {/* Two panes side by side */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         <div style={paneStyle}>
           <div style={paneHeaderStyle}>
@@ -130,8 +132,12 @@ export default function CompareTab({ brand, activeSessionId, onSessionCreated })
         </div>
       </div>
 
+      {/* Input zone */}
       <div style={{ borderTop: '1px solid var(--sep)', padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <FormatChips value={format} onChange={setFormat} />
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <FormatChips value={format} onChange={setFormat} />
+        </div>
 
         {showBuilder && <BriefBuilder onBuild={handleBuildBrief} kb={kb} />}
 
@@ -141,38 +147,34 @@ export default function CompareTab({ brand, activeSessionId, onSessionCreated })
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button
-            onClick={() => setShowBuilder(!showBuilder)}
-            style={{
-              padding: '8px 14px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--sep)',
-              background: showBuilder ? 'var(--surface)' : 'transparent',
-              fontSize: '13px',
-              fontWeight: 500,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            Brief Builder
-          </button>
-
+        {/* Claude-style input bar */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            border: '1px solid var(--sep)',
+            borderRadius: 'var(--radius-lg)',
+            background: '#fff',
+            boxShadow: 'var(--shadow-sm)',
+            overflow: 'hidden',
+          }}
+        >
           <textarea
             value={briefText}
             onChange={(e) => setBriefText(e.target.value)}
             placeholder="Write one brief — sent to both models..."
-            rows={2}
+            rows={3}
             style={{
-              flex: 1,
-              padding: '8px 12px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--sep)',
+              width: '100%',
+              padding: '14px 16px 8px',
+              border: 'none',
+              outline: 'none',
               fontSize: '14px',
               fontFamily: 'inherit',
               resize: 'none',
-              outline: 'none',
+              background: 'transparent',
+              color: 'var(--label)',
+              lineHeight: 1.6,
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -181,25 +183,68 @@ export default function CompareTab({ brand, activeSessionId, onSessionCreated })
               }
             }}
           />
-          <MicButton onTranscript={(text) => setBriefText((prev) => prev ? prev + ' ' + text : text)} />
-          <button
-            onClick={handleGenerate}
-            disabled={loading || !briefText.trim()}
+
+          {/* Bottom toolbar */}
+          <div
             style={{
-              padding: '8px 18px',
-              borderRadius: 'var(--radius-md)',
-              border: 'none',
-              background: '#1E1E2A',
-              color: '#fff',
-              fontSize: '13px',
-              fontWeight: 600,
-              cursor: loading ? 'default' : 'pointer',
-              opacity: loading || !briefText.trim() ? 0.5 : 1,
-              fontFamily: 'inherit',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '8px 12px',
+              borderTop: '1px solid var(--sep2)',
             }}
           >
-            Compare
-          </button>
+            {/* Left tools */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <button
+                onClick={() => setShowBuilder(!showBuilder)}
+                style={{
+                  padding: '5px 10px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--sep)',
+                  background: showBuilder ? 'var(--surface)' : 'transparent',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  fontFamily: 'inherit',
+                  color: 'var(--label2)',
+                }}
+              >
+                Brief Builder
+              </button>
+            </div>
+
+            {/* Right tools */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <MicButton
+                onTranscript={(text) =>
+                  setBriefText((prev) => (prev ? prev + ' ' + text : text))
+                }
+              />
+              <button
+                onClick={handleGenerate}
+                disabled={loading || !briefText.trim()}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  border: 'none',
+                  background: briefText.trim() && !loading ? '#1E1E2A' : 'var(--surface)',
+                  color: briefText.trim() && !loading ? '#fff' : 'var(--label3)',
+                  cursor: loading ? 'default' : briefText.trim() ? 'pointer' : 'default',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '14px',
+                  flexShrink: 0,
+                  transition: 'all .15s',
+                }}
+                title="Compare (Enter)"
+              >
+                ↑
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

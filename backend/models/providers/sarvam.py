@@ -70,3 +70,53 @@ async def generate_with_sarvam(
     except Exception as e:
         logger.error(f"Sarvam API error: {e}")
         raise
+    
+async def stream_with_sarvam(
+    system_prompt: str,
+    user_prompt: str,
+    model: str = "sarvam-30b",
+    max_tokens: int = 1000,
+    temperature: float = 0.7,
+):
+    """
+    Streams Sarvam response token by token using SSE.
+    """
+    try:
+        async with httpx.AsyncClient() as client:
+            async with client.stream(
+                "POST",
+                f"{SARVAM_BASE_URL}/chat/completions",
+                headers={
+                    "api-subscription-key": SARVAM_API_KEY,
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model,
+                    "max_completion_tokens": max_tokens,
+                    "temperature": temperature,
+                    "stream": True,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                },
+                timeout=60.0,
+            ) as response:
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if line.startswith("data: "):
+                        data = line[6:]
+                        if data == "[DONE]":
+                            break
+                        try:
+                            import json
+                            chunk = json.loads(data)
+                            delta = chunk["choices"][0]["delta"].get("content", "")
+                            if delta:
+                                yield delta
+                        except Exception:
+                            continue
+
+    except Exception as e:
+        logger.error(f"Sarvam streaming error: {e}")
+        raise

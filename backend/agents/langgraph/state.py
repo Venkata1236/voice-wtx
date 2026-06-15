@@ -42,6 +42,8 @@ class GraphState(TypedDict):
     # ── Format Node output ────────────────────────────────────────
     # Final cleaned copy ready for API response
     final_copy: Optional[str]
+    
+    keywords: Optional[list]
 
     # ── Error handling ────────────────────────────────────────────
     # Error message if any node fails

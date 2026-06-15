@@ -95,4 +95,5 @@ async def run_single_generation(
         "model": model,
         "format": format,
         "brand_id": brand_id,
+        "keywords": final_state.get("keywords", []),
     }

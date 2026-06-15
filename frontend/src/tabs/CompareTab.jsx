@@ -58,26 +58,64 @@ export default function CompareTab({ brand, activeSessionId, onSessionCreated })
     setLoading(true);
     setError('');
 
+    const emptyVariant = (model) => ({
+      id: null,
+      content: '',
+      keywords: [],
+      score: 70,
+      status: 'pending',
+      model,
+      format,
+      brand_id: brand.id,
+      streaming: true,
+    });
+
+    setVariantA(emptyVariant(modelA));
+    setVariantB(emptyVariant(modelB));
+
     try {
-      const result = await compareService.generate({
-        brand_id: brand.id,
-        format,
-        raw_brief: briefText,
-        model_a: modelA,
-        model_b: modelB,
-        session_id: sessionId,
-      });
-
-      setVariantA(result.variant_a);
-      setVariantB(result.variant_b);
-
-      if (!sessionId) {
-        setSessionId(result.session_id);
-        onSessionCreated(result.session_id);
-      }
+      await compareService.generateStream(
+        {
+          brand_id: brand.id,
+          format,
+          raw_brief: briefText,
+          model_a: modelA,
+          model_b: modelB,
+          session_id: sessionId,
+        },
+        {
+          onSession: (id) => {
+            setSessionId(id);
+            onSessionCreated(id);
+          },
+          onToken: (index, text) => {
+            if (index === 0) {
+              setVariantA((prev) => ({ ...prev, content: prev.content + text }));
+            } else {
+              setVariantB((prev) => ({ ...prev, content: prev.content + text }));
+            }
+          },
+          onPaneDone: (data) => {
+            const updated = {
+              id: data.variant_id,
+              content: data.content,
+              keywords: data.keywords || [],
+              score: 70,
+              status: 'pending',
+              model: data.model,
+              format: data.format,
+              brand_id: data.brand_id,
+              session_id: data.session_id,
+              streaming: false,
+            };
+            if (data.index === 0) setVariantA(updated);
+            else setVariantB(updated);
+          },
+          onDone: () => setLoading(false),
+        }
+      );
     } catch (err) {
-      setError(err.response?.data?.detail || 'Comparison failed. Please try again.');
-    } finally {
+      setError('Comparison failed. Please try again.');
       setLoading(false);
     }
   };

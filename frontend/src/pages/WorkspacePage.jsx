@@ -18,10 +18,22 @@ export default function WorkspacePage() {
   const [forgeEnabled, setForgeEnabled] = useState(false);
 
   // Per-tab session memory — each mode remembers its own session
-  const [sessionIds, setSessionIds] = useState({ single: null, compare: null, forge: null });
+  const [sessionIds, setSessionIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem('voice_session_ids');
+      return saved ? JSON.parse(saved) : { single: null, compare: null, forge: null };
+    } catch {
+      return { single: null, compare: null, forge: null };
+    }
+  });
   const activeSessionId = sessionIds[activeView] ?? null;
-  const setActiveSessionId = (id) =>
-    setSessionIds((prev) => ({ ...prev, [activeView]: id }));
+  const setActiveSessionId = (id) => {
+    setSessionIds((prev) => {
+      const updated = { ...prev, [activeView]: id };
+      localStorage.setItem('voice_session_ids', JSON.stringify(updated));
+      return updated;
+    });
+  };
 
   const activeBrand = useBrandStore((state) => state.activeBrand);
   const kb = useBrandStore((state) => state.kb);

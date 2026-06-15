@@ -6,30 +6,30 @@ import re
 async def format_node(state: GraphState) -> GraphState:
     """
     Node 4 — Format Node.
-    Cleans and formats the generated copy for API response.
-    Removes any AI meta-commentary, preamble, or trailing metadata.
-    Ensures copy is ready for direct use.
-    Skips if generation failed.
+    Cleans copy and extracts SEO keywords from AI response.
+    AI returns copy + KEYWORDS: line together.
+    This node splits them and stores separately.
     """
     if state.get("error") or not state.get("generated_copy"):
         logger.warning("Format node skipped — no copy to format")
-        return {**state, "final_copy": None}
+        return {**state, "final_copy": None, "keywords": []}
 
     logger.info("Format node running")
 
     try:
         raw_copy = state["generated_copy"]
-
-        final_copy = clean_copy(raw_copy)
+        final_copy, keywords = parse_copy_and_keywords(raw_copy)
 
         logger.info(
             f"Format node complete | "
-            f"Final copy length: {len(final_copy)} chars"
+            f"Copy length: {len(final_copy)} chars | "
+            f"Keywords: {keywords}"
         )
 
         return {
             **state,
             "final_copy": final_copy,
+            "keywords": keywords,
             "error": None,
         }
 
@@ -38,14 +38,48 @@ async def format_node(state: GraphState) -> GraphState:
         return {
             **state,
             "final_copy": state.get("generated_copy", ""),
+            "keywords": [],
             "error": str(e),
         }
 
 
+def parse_copy_and_keywords(text: str) -> tuple[str, list[str]]:
+    """
+    Splits AI response into copy and keywords.
+    AI returns:
+      <copy text>
+      KEYWORDS: keyword1, keyword2, keyword3
+    Returns (clean_copy, [keyword1, keyword2, keyword3])
+    """
+    keywords = []
+    lines = text.strip().split('\n')
+
+    # Find the KEYWORDS line
+    keyword_line_index = None
+    for i, line in enumerate(lines):
+        if line.strip().upper().startswith('KEYWORDS:'):
+            keyword_line_index = i
+            raw_keywords = line.strip()[len('KEYWORDS:'):].strip()
+            keywords = [k.strip() for k in raw_keywords.split(',') if k.strip()]
+            break
+
+    # Copy is everything before the KEYWORDS line
+    if keyword_line_index is not None:
+        copy_lines = lines[:keyword_line_index]
+    else:
+        copy_lines = lines
+
+    copy = '\n'.join(copy_lines).strip()
+
+    # Clean preambles from copy
+    copy = clean_copy(copy)
+
+    return copy, keywords
+
+
 def clean_copy(text: str) -> str:
     """
-    Removes common AI preamble phrases and trailing metadata
-    from generated copy.
+    Removes common AI preamble phrases from generated copy.
     """
     preambles = [
         "here is your copy:",
@@ -72,15 +106,11 @@ def clean_copy(text: str) -> str:
             cleaned = cleaned[len(preamble):].strip()
             break
 
-    # ── Strip trailing metadata lines ──────────────────────────────
-    # AI sometimes appends lines like:
-    # "--- Word count: 8 words" or "**Word count:** 8 words"
-    # Remove anything from "---" onward, and standalone metadata lines
+    # Strip trailing metadata lines
+    import re
     cleaned = re.sub(r'\n?-{2,}.*$', '', cleaned, flags=re.DOTALL).strip()
     cleaned = re.sub(r'\n?\*{0,2}word count\*{0,2}:.*$', '', cleaned, flags=re.IGNORECASE | re.DOTALL).strip()
     cleaned = re.sub(r'\n?\*{0,2}character count\*{0,2}:.*$', '', cleaned, flags=re.IGNORECASE | re.DOTALL).strip()
-
-    # Strip markdown heading markers (AI sometimes prefixes with #)
     cleaned = re.sub(r'^#+\s*', '', cleaned)
 
     return cleaned.strip()

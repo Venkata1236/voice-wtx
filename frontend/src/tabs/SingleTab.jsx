@@ -142,9 +142,9 @@ export default function SingleTab({ brand, activeSessionId, onSessionCreated }) 
           </div>
         )}
 
-        {variants.map((variant) => (
+        {variants.map((variant, index) => (
           <VariantCard
-            key={variant.id}
+            key={variant.id || `streaming-${index}`}
             variant={variant}
             onApprove={handleApprove}
             onReject={handleReject}

@@ -11,6 +11,11 @@ from api.middleware.role_guard import require_any
 from api.middleware.rate_limiter import limiter
 from agents.orchestrator import run_compare
 from api.routes.copy import build_user_prompt
+from fastapi.responses import StreamingResponse
+from models.router import stream_from_model
+from kb.kb_builder import build_kb_context, format_kb_for_prompt
+from agents.langgraph.nodes.format_node import parse_copy_and_keywords
+import json as json_lib
 
 router = APIRouter(prefix="/api/compare", tags=["Compare Mode"])
 
@@ -149,7 +154,97 @@ async def compare_generate(
         variant_b=VariantResponse(**variant_b_response.data[0]),
     )
 
+# ── POST /api/compare/stream ───────────────────────────────────────
+@router.post("/stream")
+@limiter.limit("10/minute")
+async def compare_generate_stream(
+    request: Request,
+    payload: ComparePayload,
+    current_user: dict = Depends(require_any),
+):
+    """
+    Streaming Compare mode — both models stream simultaneously.
+    Left pane (model A) and right pane (model B) fill in real time.
+    """
+    supabase_admin = get_supabase_admin()
+    user_prompt = build_user_prompt(payload)
 
+    session_id = payload.session_id
+    if not session_id:
+        session_response = (
+            supabase_admin.table("chat_sessions")
+            .insert({
+                "user_id": current_user["id"],
+                "brand_id": payload.brand_id,
+                "mode": "compare",
+                "title": user_prompt[:50],
+            })
+            .execute()
+        )
+        session_id = session_response.data[0]["id"]
+
+    async def event_generator():
+        yield f"data: {json_lib.dumps({'type': 'session', 'session_id': session_id})}\n\n"
+
+        kb_context = await build_kb_context(payload.brand_id)
+        system_prompt = format_kb_for_prompt(kb_context)
+
+        for pane_index, model in enumerate([payload.model_a.value, payload.model_b.value]):
+            yield f"data: {json_lib.dumps({'type': 'pane_start', 'index': pane_index, 'model': model})}\n\n"
+
+            full_content = ""
+
+            async for chunk in stream_from_model(
+                model=model,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+            ):
+                full_content += chunk
+                if 'KEYWORDS:' not in full_content:
+                    yield f"data: {json_lib.dumps({'type': 'token', 'index': pane_index, 'text': chunk})}\n\n"
+                else:
+                    copy_part = full_content.split('KEYWORDS:')[0]
+                    already_sent = full_content.replace(chunk, '')
+                    new_copy = copy_part[len(already_sent):]
+                    if new_copy:
+                        yield f"data: {json_lib.dumps({'type': 'token', 'index': pane_index, 'text': new_copy})}\n\n"
+
+            final_copy, keywords = parse_copy_and_keywords(full_content)
+
+            try:
+                variant_response = (
+                    supabase_admin.table("copy_variants")
+                    .insert({
+                        "session_id": session_id,
+                        "brand_id": payload.brand_id,
+                        "model": model,
+                        "format": payload.format.value,
+                        "brief": user_prompt,
+                        "content": final_copy,
+                        "score": 70,
+                        "status": "pending",
+                        "keywords": json_lib.dumps(keywords),
+                    })
+                    .execute()
+                )
+                variant_id = variant_response.data[0]["id"]
+            except Exception as e:
+                variant_id = None
+                logger.error(f"Failed to save compare variant {pane_index}: {e}")
+
+            yield f"data: {json_lib.dumps({'type': 'pane_done', 'index': pane_index, 'variant_id': variant_id, 'session_id': session_id, 'keywords': keywords, 'model': model, 'format': payload.format.value, 'brand_id': payload.brand_id})}\n\n"
+
+        yield f"data: {json_lib.dumps({'type': 'done'})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+    
 # ── GET /api/compare/sessions/{brand_id} ──────────────────────────
 @router.get("/sessions/{brand_id}")
 async def get_compare_sessions(

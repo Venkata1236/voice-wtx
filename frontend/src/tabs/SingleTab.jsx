@@ -5,6 +5,7 @@ import BriefBuilder from '../components/brief/BriefBuilder';
 import FormatChips from '../components/brief/FormatChips';
 import VariantCard from '../components/variants/VariantCard';
 import ModelSelector from '../components/compare/ModelSelector';
+import MicButton from '../components/common/MicButton';
 
 export default function SingleTab({ brand, activeSessionId, onSessionCreated }) {
   const kb = useBrandStore((state) => state.kb);
@@ -188,7 +189,7 @@ export default function SingleTab({ brand, activeSessionId, onSessionCreated }) 
               }
             }}
           />
-
+          <MicButton onTranscript={(text) => setBriefText((prev) => prev ? prev + ' ' + text : text)} />
           <button
             onClick={handleGenerate}
             disabled={loading || !briefText.trim()}

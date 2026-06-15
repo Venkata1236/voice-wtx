@@ -50,9 +50,9 @@ async def run_single_three_variants(
     # Run 3 generations in parallel — same brief, same model,
     # but temperature variation in the model produces different outputs
     results = await asyncio.gather(
-        run_single_generation(brand_id, user_prompt, format, model, session_id),
-        run_single_generation(brand_id, user_prompt, format, model, session_id),
-        run_single_generation(brand_id, user_prompt, format, model, session_id),
+        run_single_generation(brand_id, user_prompt, format, model, session_id, temperature=0.6),
+        run_single_generation(brand_id, user_prompt, format, model, session_id, temperature=0.8),
+        run_single_generation(brand_id, user_prompt, format, model, session_id, temperature=1.0),
         return_exceptions=True,
     )
 

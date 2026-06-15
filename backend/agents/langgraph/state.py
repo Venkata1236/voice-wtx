@@ -46,3 +46,5 @@ class GraphState(TypedDict):
     # ── Error handling ────────────────────────────────────────────
     # Error message if any node fails
     error: Optional[str]
+    
+    temperature: Optional[float]

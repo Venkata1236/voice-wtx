@@ -215,11 +215,15 @@ def format_kb_for_prompt(kb_context: dict) -> str:
     # ── Output format instruction — prevent metadata leakage ────────
     sections.append(
         "OUTPUT RULES:\n"
-        "- Output ONLY the copy itself.\n"
+        "- Write the copy first.\n"
         "- No headings, no markdown formatting symbols (no #, no **).\n"
         "- No word count, character count, or any meta-commentary.\n"
         "- No preamble like 'Here is your copy:'.\n"
-        "- Just the raw copy text, ready to publish."
+        "- After the copy, on a NEW LINE write exactly: KEYWORDS: followed by 6-8 comma-separated SEO keywords and hashtags relevant to the copy.\n"
+        "- Example format:\n"
+        "  Mango season aa gaya! Order karo abhi.\n"
+        "  KEYWORDS: Ratnagiri Alphonso, mango season, 10 minute delivery, #MangoSeason, #ZeptoFresh, #FreshFruits\n"
+        "- The KEYWORDS line must always be the last line."
     )
 
     return "\n\n".join(sections)

@@ -35,6 +35,7 @@ class VariantResponse(BaseModel):
     agent_generator: Optional[str] = None
     agent_critic: Optional[str] = None
     created_at: datetime
+    keywords: Optional[list] = []
 
     class Config:
         from_attributes = True

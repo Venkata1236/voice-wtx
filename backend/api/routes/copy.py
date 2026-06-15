@@ -8,6 +8,10 @@ from api.middleware.auth_guard import get_current_user
 from api.middleware.role_guard import require_any
 from api.middleware.rate_limiter import limiter
 from agents.orchestrator import run_single_three_variants
+from fastapi.responses import StreamingResponse
+from models.router import stream_from_model
+from kb.kb_builder import build_kb_context, format_kb_for_prompt
+import json
 
 router = APIRouter(prefix="/api/copy", tags=["Copy Generation"])
 
@@ -119,7 +123,103 @@ async def generate_copy(
 
     return variants
 
+# ── POST /api/copy/generate-stream ────────────────────────────────
+@router.post("/generate-stream")
+@limiter.limit("10/minute")
+async def generate_copy_stream(
+    request: Request,
+    payload: BriefPayload,
+    current_user: dict = Depends(require_any),
+):
+    """
+    Streaming version of generate.
+    Returns SSE stream — each token arrives as it's generated.
+    Frontend reads stream and updates UI in real time.
+    Sends 3 variants sequentially, each streamed token by token.
+    """
+    supabase_admin = get_supabase_admin()
 
+    user_prompt = build_user_prompt(payload)
+
+    # Create session
+    session_id = payload.session_id
+    if not session_id:
+        session_response = (
+            supabase_admin.table("chat_sessions")
+            .insert({
+                "user_id": current_user["id"],
+                "brand_id": payload.brand_id,
+                "mode": "single",
+                "title": user_prompt[:50],
+            })
+            .execute()
+        )
+        session_id = session_response.data[0]["id"]
+
+    async def event_generator():
+        # Send session_id first
+        yield f"data: {json.dumps({'type': 'session', 'session_id': session_id})}\n\n"
+
+        # Build KB context once for all 3 variants
+        kb_context = await build_kb_context(payload.brand_id)
+        system_prompt = format_kb_for_prompt(kb_context)
+
+        for variant_index in range(3):
+            # Signal start of new variant
+            yield f"data: {json.dumps({'type': 'variant_start', 'index': variant_index})}\n\n"
+
+            full_content = ""
+
+            # Stream tokens
+            async for chunk in stream_from_model(
+                model=payload.model.value,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+            ):
+                full_content += chunk
+                yield f"data: {json.dumps({'type': 'token', 'index': variant_index, 'text': chunk})}\n\n"
+
+            # Parse copy and keywords from full content
+            from agents.langgraph.nodes.format_node import parse_copy_and_keywords
+            final_copy, keywords = parse_copy_and_keywords(full_content)
+
+            # Save to database
+            try:
+                variant_response = (
+                    supabase_admin.table("copy_variants")
+                    .insert({
+                        "session_id": session_id,
+                        "brand_id": payload.brand_id,
+                        "model": payload.model.value,
+                        "format": payload.format.value,
+                        "brief": user_prompt,
+                        "content": final_copy,
+                        "score": 70,
+                        "status": "pending",
+                    })
+                    .execute()
+                )
+                variant_id = variant_response.data[0]["id"]
+            except Exception as e:
+                variant_id = None
+                logger.error(f"Failed to save variant {variant_index}: {e}")
+
+            # Signal variant complete with metadata
+            yield f"data: {json.dumps({'type': 'variant_done', 'index': variant_index, 'variant_id': variant_id, 'session_id': session_id, 'keywords': keywords, 'model': payload.model.value, 'format': payload.format.value, 'brand_id': payload.brand_id})}\n\n"
+
+        # Signal all done
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+    
+    
 # ── POST /api/copy/approve ─────────────────────────────────────────
 @router.post("/approve")
 async def approve_variant(

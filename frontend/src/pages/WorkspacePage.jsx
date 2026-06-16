@@ -38,17 +38,28 @@ export default function WorkspacePage() {
   const activeBrand = useBrandStore((state) => state.activeBrand);
   const kb = useBrandStore((state) => state.kb);
 
-  useEffect(() => {
-  const handler = () => {
-    if (activeBrand) {
+  // Fetch sessions helper
+  const fetchSessions = () => {
+    if (activeBrand?.id) {
       api.get(`/api/copy/sessions/${activeBrand.id}`).then((res) => {
         setSessions(res.data);
       }).catch(() => {});
+    } else {
+      setSessions([]);
     }
   };
-  window.addEventListener('voice-session-created', handler);
-  return () => window.removeEventListener('voice-session-created', handler);
-}, [activeBrand?.id]);
+
+  // Initial load + reload when brand changes
+  useEffect(() => {
+    fetchSessions();
+  }, [activeBrand?.id]);
+
+  // Reload sessions when a new one is created via streaming
+  useEffect(() => {
+    const handler = () => fetchSessions();
+    window.addEventListener('voice-session-created', handler);
+    return () => window.removeEventListener('voice-session-created', handler);
+  }, [activeBrand?.id]);
 
   useEffect(() => {
     api.get('/api/settings/feature-flags').then((res) => {
@@ -126,13 +137,7 @@ export default function WorkspacePage() {
           sessions={sessions}
           activeSessionId={activeSessionId}
           onSelectSession={handleSelectSession}
-          onRefreshSessions={() => {
-            if (activeBrand) {
-              api.get(`/api/copy/sessions/${activeBrand.id}`).then((res) => {
-                setSessions(res.data);
-              });
-            }
-          }}
+          onRefreshSessions={fetchSessions}
         />
 
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minWidth: 0 }}>

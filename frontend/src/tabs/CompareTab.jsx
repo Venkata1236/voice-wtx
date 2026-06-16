@@ -29,6 +29,12 @@ export default function CompareTab({ brand, activeSessionId, onSessionCreated })
         if (variants.length >= 2) {
           setVariantA(variants[0]);
           setVariantB(variants[1]);
+          // Update model pills to match what's actually shown
+          setModelA(variants[0].model);
+          setModelB(variants[1].model);
+        } else if (variants.length === 1) {
+          setVariantA(variants[0]);
+          setModelA(variants[0].model);
         }
       });
     } else {

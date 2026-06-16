@@ -23,13 +23,15 @@ export default function CompareTab({ brand, activeSessionId, onSessionCreated })
   const [sessionId, setSessionId] = useState(activeSessionId);
 
   useEffect(() => {
-    if (activeSessionId) {
-      setSessionId(activeSessionId);
+  if (activeSessionId) {
+    setSessionId(activeSessionId);
+    // Only load from DB if not currently streaming
+    const isStreaming = variantA?.streaming || variantB?.streaming;
+    if (!isStreaming) {
       compareService.getSessionVariants(activeSessionId).then((variants) => {
         if (variants.length >= 2) {
           setVariantA(variants[0]);
           setVariantB(variants[1]);
-          // Update model pills to match what's actually shown
           setModelA(variants[0].model);
           setModelB(variants[1].model);
         } else if (variants.length === 1) {
@@ -37,13 +39,14 @@ export default function CompareTab({ brand, activeSessionId, onSessionCreated })
           setModelA(variants[0].model);
         }
       });
-    } else {
-      setSessionId(null);
-      setVariantA(null);
-      setVariantB(null);
-      setBriefText('');
     }
-  }, [activeSessionId]);
+  } else {
+    setSessionId(null);
+    setVariantA(null);
+    setVariantB(null);
+    setBriefText('');
+  }
+}, [activeSessionId]);
 
   const handleBuildBrief = (fields) => {
     const lines = [`Format: ${format}`];

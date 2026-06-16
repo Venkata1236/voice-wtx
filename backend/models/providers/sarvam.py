@@ -79,8 +79,12 @@ async def stream_with_sarvam(
     temperature: float = 0.7,
 ):
     """
-    Streams Sarvam response token by token using SSE.
+    Streams Sarvam response token by token.
+    Note: sarvam-30b has reasoning mode which returns content=None
+    for thinking chunks — we skip those and only yield actual content.
+    Also disables reasoning to avoid content=None gotcha.
     """
+    import json as json_lib
     try:
         async with httpx.AsyncClient() as client:
             async with client.stream(
@@ -95,6 +99,7 @@ async def stream_with_sarvam(
                     "max_completion_tokens": max_tokens,
                     "temperature": temperature,
                     "stream": True,
+                    "reasoning_effort": None,  # Disable reasoning to avoid content=None
                     "messages": [
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},
@@ -104,19 +109,30 @@ async def stream_with_sarvam(
             ) as response:
                 response.raise_for_status()
                 async for line in response.aiter_lines():
-                    if line.startswith("data: "):
-                        data = line[6:]
-                        if data == "[DONE]":
-                            break
-                        try:
-                            import json
-                            chunk = json.loads(data)
-                            delta = chunk["choices"][0]["delta"].get("content", "")
-                            if delta:
-                                yield delta
-                        except Exception:
-                            continue
+                    if not line.startswith("data: "):
+                        continue
+                    data = line[6:]
+                    if data == "[DONE]":
+                        break
+                    try:
+                        chunk = json_lib.loads(data)
+                        delta = chunk["choices"][0]["delta"]
+                        # Skip reasoning chunks where content is None
+                        content = delta.get("content")
+                        if content is not None:
+                            yield content
+                    except Exception:
+                        continue
 
     except Exception as e:
         logger.error(f"Sarvam streaming error: {e}")
-        raise
+        # Fallback to non-streaming
+        logger.info("Falling back to non-streaming Sarvam call")
+        result = await generate_with_sarvam(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+        yield result

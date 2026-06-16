@@ -20,15 +20,19 @@ export default function SingleTab({ brand, activeSessionId, onSessionCreated }) 
   const [sessionId, setSessionId] = useState(activeSessionId);
 
   useEffect(() => {
-    if (activeSessionId) {
-      setSessionId(activeSessionId);
+  if (activeSessionId) {
+    setSessionId(activeSessionId);
+    // Only load from DB if not currently streaming
+    const isStreaming = variants.some(v => v.streaming);
+    if (!isStreaming) {
       copyService.getSessionVariants(activeSessionId).then(setVariants);
-    } else {
-      setSessionId(null);
-      setVariants([]);
-      setBriefText('');
     }
-  }, [activeSessionId]);
+  } else {
+    setSessionId(null);
+    setVariants([]);
+    setBriefText('');
+  }
+}, [activeSessionId]);
 
   const handleBuildBrief = (fields) => {
     const lines = [`Format: ${format}`];

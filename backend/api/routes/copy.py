@@ -484,3 +484,33 @@ async def pin_session(
     ).eq("id", session_id).execute()
 
     return {"is_pinned": new_pin_status}
+
+# ── PATCH /api/copy/session/{session_id}/rename ───────────────────
+@router.patch("/session/{session_id}/rename")
+async def rename_session(
+    session_id: str,
+    title: str,
+    current_user: dict = Depends(require_any),
+):
+    supabase_admin = get_supabase_admin()
+    response = (
+        supabase_admin.table("chat_sessions")
+        .update({"title": title})
+        .eq("id", session_id)
+        .execute()
+    )
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {"message": "Renamed successfully"}
+
+
+# ── DELETE /api/copy/session/{session_id} ─────────────────────────
+@router.delete("/session/{session_id}")
+async def delete_session(
+    session_id: str,
+    current_user: dict = Depends(require_any),
+):
+    supabase_admin = get_supabase_admin()
+    supabase_admin.table("chat_sessions").delete().eq("id", session_id).execute()
+    supabase_admin.table("copy_variants").delete().eq("session_id", session_id).execute()
+    return {"message": "Session deleted"}

@@ -222,7 +222,7 @@ async def generate_copy_stream(
                 logger.error(f"Failed to save variant {variant_index}: {e}")
 
             # Signal variant complete with metadata
-            yield f"data: {json.dumps({'type': 'variant_done', 'index': variant_index, 'variant_id': variant_id, 'session_id': session_id, 'keywords': keywords, 'model': payload.model.value, 'format': payload.format.value, 'brand_id': payload.brand_id})}\n\n"
+            yield f"data: {json.dumps({'type': 'variant_done', 'index': variant_index, 'variant_id': variant_id, 'session_id': session_id, 'keywords': keywords, 'model': payload.model.value, 'format': payload.format.value, 'brand_id': payload.brand_id, 'content': final_copy})}\n\n"
 
         # Signal all done
         yield f"data: {json.dumps({'type': 'done'})}\n\n"

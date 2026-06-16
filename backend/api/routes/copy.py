@@ -456,7 +456,6 @@ async def get_brand_sessions(
         .select("*")
         .eq("brand_id", brand_id)
         .eq("user_id", current_user["id"])
-        .eq("mode", "single")
         .order("is_pinned", desc=True)
         .order("updated_at", desc=True)
         .execute()

@@ -87,10 +87,11 @@ export default function SingleTab({ brand, activeSessionId, onSessionCreated }) 
         onVariantDone: (data) => {
           setVariants((prev) => {
             const updated = [...prev];
+            const existing = updated[data.index] || {};
             updated[data.index] = {
-              ...updated[data.index],
+              ...existing,
               id: data.variant_id,
-              content: data.content || updated[data.index].content,
+              content: data.content || existing.content || '',
               keywords: data.keywords || [],
               score: 70,
               status: 'pending',

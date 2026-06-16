@@ -61,6 +61,15 @@ def parse_copy_and_keywords(text: str) -> tuple[str, list[str]]:
             keyword_line_index = i
             raw_keywords = line.strip()[len('KEYWORDS:'):].strip()
             keywords = [k.strip() for k in raw_keywords.split(',') if k.strip()]
+            # Cap at 8 keywords max, remove duplicates
+            seen = set()
+            unique_keywords = []
+            for kw in keywords:
+                kw_lower = kw.lower()
+                if kw_lower not in seen:
+                    seen.add(kw_lower)
+                    unique_keywords.append(kw)
+            keywords = unique_keywords[:8]
             break
 
     # Copy is everything before the KEYWORDS line

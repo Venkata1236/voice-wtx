@@ -145,7 +145,21 @@ async def generate_copy_stream(
 
     # Create session
     session_id = payload.session_id
-    if not session_id:
+
+    # Verify the session still exists — it may have been deleted
+    session_exists = False
+    if session_id:
+        check = (
+            supabase_admin.table("chat_sessions")
+            .select("id")
+            .eq("id", session_id)
+            .maybe_single()
+            .execute()
+        )
+        session_exists = bool(check and check.data)
+
+    # Create new session if none provided OR the provided one was deleted
+    if not session_exists:
         session_response = (
             supabase_admin.table("chat_sessions")
             .insert({

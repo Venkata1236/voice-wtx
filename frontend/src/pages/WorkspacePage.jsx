@@ -39,6 +39,16 @@ export default function WorkspacePage() {
   const kb = useBrandStore((state) => state.kb);
 
   useEffect(() => {
+  if (activeBrand) {
+    api.get(`/api/copy/sessions/${activeBrand.id}`).then((res) => {
+      setSessions(res.data);
+    }).catch(() => {});
+  } else {
+    setSessions([]);
+  }
+}, [activeBrand, sessionIds]);
+
+  useEffect(() => {
     api.get('/api/settings/feature-flags').then((res) => {
       const forge = res.data.find((f) => f.flag_name === 'forge_mode');
       setForgeEnabled(forge?.is_enabled || false);
@@ -114,6 +124,13 @@ export default function WorkspacePage() {
           sessions={sessions}
           activeSessionId={activeSessionId}
           onSelectSession={handleSelectSession}
+          onRefreshSessions={() => {
+            if (activeBrand) {
+              api.get(`/api/copy/sessions/${activeBrand.id}`).then((res) => {
+                setSessions(res.data);
+              });
+            }
+          }}
         />
 
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minWidth: 0 }}>

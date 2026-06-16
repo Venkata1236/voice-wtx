@@ -30,10 +30,22 @@ export default function CompareTab({ brand, activeSessionId, onSessionCreated })
     if (!isStreaming) {
       compareService.getSessionVariants(activeSessionId).then((variants) => {
         if (variants.length >= 2) {
-          setVariantA(variants[0]);
-          setVariantB(variants[1]);
-          setModelA(variants[0].model);
-          setModelB(variants[1].model);
+          // Match by model — claude/gpt/gemini go left, sarvam goes right
+          const left = variants.find(v => !v.model.toLowerCase().includes('sarvam'));
+          const right = variants.find(v => v.model.toLowerCase().includes('sarvam'));
+
+          if (left && right) {
+            setVariantA(left);
+            setVariantB(right);
+            setModelA(left.model);
+            setModelB(right.model);
+          } else {
+            // Fallback — just use first two in order
+            setVariantA(variants[0]);
+            setVariantB(variants[1]);
+            setModelA(variants[0].model);
+            setModelB(variants[1].model);
+          }
         } else if (variants.length === 1) {
           setVariantA(variants[0]);
           setModelA(variants[0].model);

@@ -96,20 +96,35 @@ export default function CompareTab({ brand, activeSessionId, onSessionCreated })
             }
           },
           onPaneDone: (data) => {
-            const updated = {
-              id: data.variant_id,
-              content: data.content || '',
-              keywords: data.keywords || [],
-              score: 70,
-              status: 'pending',
-              model: data.model,
-              format: data.format,
-              brand_id: data.brand_id,
-              session_id: data.session_id,
-              streaming: false,
-            };
-            if (data.index === 0) setVariantA(updated);
-            else setVariantB(updated);
+            if (data.index === 0) {
+              setVariantA((prev) => ({
+                ...prev,
+                id: data.variant_id,
+                content: data.content || prev?.content || '',
+                keywords: data.keywords || [],
+                score: 70,
+                status: 'pending',
+                model: data.model,
+                format: data.format,
+                brand_id: data.brand_id,
+                session_id: data.session_id,
+                streaming: false,
+              }));
+            } else {
+              setVariantB((prev) => ({
+                ...prev,
+                id: data.variant_id,
+                content: data.content || prev?.content || '',
+                keywords: data.keywords || [],
+                score: 70,
+                status: 'pending',
+                model: data.model,
+                format: data.format,
+                brand_id: data.brand_id,
+                session_id: data.session_id,
+                streaming: false,
+              }));
+            }
           },
           onDone: () => setLoading(false),
         }

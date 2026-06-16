@@ -219,11 +219,13 @@ def format_kb_for_prompt(kb_context: dict) -> str:
         "- No headings, no markdown formatting symbols (no #, no **).\n"
         "- No word count, character count, or any meta-commentary.\n"
         "- No preamble like 'Here is your copy:'.\n"
-        "- After the copy, on a NEW LINE write exactly: KEYWORDS: followed by 6-8 comma-separated SEO keywords and hashtags relevant to the copy.\n"
+        "- After the copy, on a NEW LINE write exactly: KEYWORDS: followed by exactly 6 comma-separated SEO keywords and hashtags.\n"
+        "- Keywords must be UNIQUE — never repeat the same keyword or hashtag.\n"
+        "- Mix 3 plain keywords and 3 hashtags only. No more than 6 total.\n"
         "- Example format:\n"
         "  Mango season aa gaya! Order karo abhi.\n"
         "  KEYWORDS: Ratnagiri Alphonso, mango season, 10 minute delivery, #MangoSeason, #ZeptoFresh, #FreshFruits\n"
-        "- The KEYWORDS line must always be the last line."
+        "- The KEYWORDS line must always be the last line. Stop after the KEYWORDS line."
     )
 
     return "\n\n".join(sections)

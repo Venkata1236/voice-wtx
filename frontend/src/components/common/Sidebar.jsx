@@ -142,16 +142,13 @@ export default function Sidebar({ onNewChat, sessions = [], activeSessionId, onS
         }}
       >
         <div
-          onClick={logout}
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
             padding: '6px 8px',
             borderRadius: 'var(--radius-sm)',
-            cursor: 'pointer',
           }}
-          title="Click to log out"
         >
           <div
             style={{
@@ -177,6 +174,24 @@ export default function Sidebar({ onNewChat, sessions = [], activeSessionId, onS
               {user?.role?.replace('_', ' ')}
             </div>
           </div>
+          <button
+            onClick={logout}
+            title="Log out"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'rgba(255,255,255,0.4)',
+              cursor: 'pointer',
+              fontSize: '16px',
+              padding: '4px 8px',
+              borderRadius: '6px',
+              flexShrink: 0,
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#ff6b6b'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; }}
+          >
+            ⏻
+          </button>
         </div>
       </div>
     </aside>

@@ -81,7 +81,19 @@ async def compare_generate(
 
     # Get or create chat session
     session_id = payload.session_id
-    if not session_id:
+
+    session_exists = False
+    if session_id:
+        check = (
+            supabase_admin.table("chat_sessions")
+            .select("id")
+            .eq("id", session_id)
+            .maybe_single()
+            .execute()
+        )
+        session_exists = bool(check and check.data)
+
+    if not session_exists:
         session_response = (
             supabase_admin.table("chat_sessions")
             .insert({

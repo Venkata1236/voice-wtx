@@ -39,13 +39,15 @@ export default function WorkspacePage() {
   const kb = useBrandStore((state) => state.kb);
 
   useEffect(() => {
-  if (activeBrand) {
-    api.get(`/api/copy/sessions/${activeBrand.id}`).then((res) => {
-      setSessions(res.data);
-    }).catch(() => {});
-  } else {
-    setSessions([]);
-  }
+  const handler = () => {
+    if (activeBrand) {
+      api.get(`/api/copy/sessions/${activeBrand.id}`).then((res) => {
+        setSessions(res.data);
+      }).catch(() => {});
+    }
+  };
+  window.addEventListener('voice-session-created', handler);
+  return () => window.removeEventListener('voice-session-created', handler);
 }, [activeBrand?.id]);
 
   useEffect(() => {

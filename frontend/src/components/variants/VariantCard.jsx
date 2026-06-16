@@ -14,7 +14,7 @@ const REJECTION_REASONS = [
 export default function VariantCard({ variant, onApprove, onReject }) {
   const [showRejectMenu, setShowRejectMenu] = useState(false);
 
-  const scoreColor = variant.score >= 80 ? 'var(--green)' : variant.score >= 60 ? 'var(--orange)' : 'var(--red)';
+  
 
   const isApproved = variant.status === 'approved';
   const isRejected = variant.status === 'rejected';
@@ -51,11 +51,7 @@ export default function VariantCard({ variant, onApprove, onReject }) {
         <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--label3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           {variant.model}
         </span>
-        {!isStreaming && (
-          <span style={{ fontSize: '12px', fontWeight: 600, color: scoreColor }}>
-            {variant.score}%
-          </span>
-        )}
+        
       </div>
 
       {/* Body */}

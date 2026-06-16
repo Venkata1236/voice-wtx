@@ -232,7 +232,7 @@ async def compare_generate_stream(
                 variant_id = None
                 logger.error(f"Failed to save compare variant {pane_index}: {e}")
 
-            yield f"data: {json_lib.dumps({'type': 'pane_done', 'index': pane_index, 'variant_id': variant_id, 'session_id': session_id, 'keywords': keywords, 'model': model, 'format': payload.format.value, 'brand_id': payload.brand_id})}\n\n"
+            yield f"data: {json_lib.dumps({'type': 'pane_done', 'index': pane_index, 'variant_id': variant_id, 'session_id': session_id, 'keywords': keywords, 'model': model, 'format': payload.format.value, 'brand_id': payload.brand_id, 'content': final_copy})}\n\n"
 
         yield f"data: {json_lib.dumps({'type': 'done'})}\n\n"
 

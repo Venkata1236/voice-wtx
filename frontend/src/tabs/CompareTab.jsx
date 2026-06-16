@@ -98,7 +98,7 @@ export default function CompareTab({ brand, activeSessionId, onSessionCreated })
           onPaneDone: (data) => {
             const updated = {
               id: data.variant_id,
-              content: data.content,
+              content: data.content || '',
               keywords: data.keywords || [],
               score: 70,
               status: 'pending',

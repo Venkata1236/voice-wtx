@@ -276,10 +276,6 @@ async def get_compare_session_variants(
     session_id: str,
     current_user: dict = Depends(require_any),
 ):
-    """
-    Returns all variants for a Compare session.
-    Used to restore a previous comparison when user clicks a session.
-    """
     supabase = get_supabase()
 
     response = (
@@ -290,4 +286,19 @@ async def get_compare_session_variants(
         .execute()
     )
 
-    return [VariantResponse.from_db(v) for v in response.data]
+    variants = [VariantResponse.from_db(v) for v in response.data]
+
+    # Return latest 2 variants — one per model
+    # Pick the last claude variant and last sarvam variant
+    if len(variants) >= 2:
+        seen_models = {}
+        for v in reversed(variants):
+            if v.model not in seen_models:
+                seen_models[v.model] = v
+            if len(seen_models) == 2:
+                break
+        # Return in order: model_a first, model_b second
+        result = list(seen_models.values())
+        return result
+
+    return variants

@@ -20,8 +20,12 @@ export default function VariantCard({ variant, onApprove, onReject }) {
   const isRejected = variant.status === 'rejected';
   const isStreaming = variant.streaming === true;
 
+  const [copied, setCopied] = useState(false);
+
   const handleCopy = () => {
     navigator.clipboard.writeText(variant.content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -118,19 +122,54 @@ export default function VariantCard({ variant, onApprove, onReject }) {
         </div>
       )}
 
-      {/* Footer actions — hidden while streaming */}
+      {/* ChatGPT-style copy button — subtle, below content */}
       {!isStreaming && (
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'flex-end',
-            padding: '9px 14px',
-            borderTop: '1px solid var(--sep)',
-            gap: '6px',
-            position: 'relative',
+            padding: '4px 14px 10px',
+            gap: '4px',
           }}
         >
+          <button
+            onClick={handleCopy}
+            title={copied ? 'Copied!' : 'Copy'}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '6px',
+              borderRadius: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              color: 'var(--label3)',
+              fontSize: '12px',
+              fontFamily: 'inherit',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+          >
+            {copied ? (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                Copied
+              </>
+            ) : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+                Copy
+              </>
+            )}
+          </button>
+        </div>
+      )}
           <button onClick={handleCopy} style={btnStyle}>
             Copy
           </button>

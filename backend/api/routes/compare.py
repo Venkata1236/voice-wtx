@@ -290,4 +290,4 @@ async def get_compare_session_variants(
         .execute()
     )
 
-    return [VariantResponse(**v) for v in response.data]
+    return [VariantResponse.from_db(v) for v in response.data]

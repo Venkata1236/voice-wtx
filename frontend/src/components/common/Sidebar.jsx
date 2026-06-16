@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 import { useBrandStore } from '../../store/brandStore';
 import { useAuthStore } from '../../store/authStore';
+import SessionItem from './SessionItem';
 
-export default function Sidebar({ onNewChat, sessions = [], activeSessionId, onSelectSession }) {
+export default function Sidebar({ onNewChat, sessions = [], activeSessionId, onSelectSession, onRefreshSessions }) {
   const { brands, activeBrand, fetchBrands, setActiveBrand, loading } = useBrandStore();
   const { user, logout } = useAuthStore();
 
@@ -117,37 +118,16 @@ export default function Sidebar({ onNewChat, sessions = [], activeSessionId, onS
               </div>
             )}
             {sessions.map((session) => (
-              <div
+              <SessionItem
                 key={session.id}
-                onClick={() => onSelectSession(session)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '9px',
-                  padding: '7px 10px 7px 8px',
-                  borderRadius: 'var(--radius-sm)',
-                  cursor: 'pointer',
-                  marginBottom: '1px',
-                  borderLeft: activeSessionId === session.id ? '3px solid rgba(232,184,75,.45)' : '3px solid transparent',
-                  background: activeSessionId === session.id ? 'rgba(255,255,255,.07)' : 'transparent',
+                session={session}
+                isActive={activeSessionId === session.id}
+                onSelect={onSelectSession}
+                onRefresh={onRefreshSessions}
+                onDeleted={(id) => {
+                  onRefreshSessions();
                 }}
-              >
-                <span
-                  style={{
-                    fontSize: '12px',
-                    color: activeSessionId === session.id ? 'rgba(255,255,255,.68)' : 'rgba(255,255,255,.40)',
-                    flex: 1,
-                    overflow: 'hidden',
-                    display: '-webkit-box',
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical',
-                    lineHeight: 1.45,
-                  }}
-                >
-                  {session.title || 'Untitled'}
-                  {session.is_pinned && ' 📌'}
-                </span>
-              </div>
+              />
             ))}
           </>
         )}

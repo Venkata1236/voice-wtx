@@ -90,7 +90,10 @@ export default function SingleTab({ brand, activeSessionId, onSessionCreated }) 
             updated[data.index] = {
               ...updated[data.index],
               id: data.variant_id,
+              content: data.content || updated[data.index].content,
               keywords: data.keywords || [],
+              score: 70,
+              status: 'pending',
               model: data.model,
               format: data.format,
               brand_id: data.brand_id,

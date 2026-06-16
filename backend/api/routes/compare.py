@@ -210,6 +210,13 @@ async def compare_generate_stream(
                         yield f"data: {json_lib.dumps({'type': 'token', 'index': pane_index, 'text': new_copy})}\n\n"
 
             final_copy, keywords = parse_copy_and_keywords(full_content)
+            logger.info(
+                f"Compare stream pane {pane_index} | "
+                f"Model: {model} | "
+                f"Full content length: {len(full_content)} | "
+                f"Final copy length: {len(final_copy)} | "
+                f"Keywords: {keywords}"
+            )
 
             try:
                 variant_response = (

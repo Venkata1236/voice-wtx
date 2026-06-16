@@ -295,8 +295,6 @@ async def get_compare_session_variants(
 
     variants = [VariantResponse.from_db(v) for v in response.data]
 
-    # Return latest 2 variants — one per model
-    # Pick the last claude variant and last sarvam variant
     if len(variants) >= 2:
         seen_models = {}
         for v in reversed(variants):
@@ -304,8 +302,21 @@ async def get_compare_session_variants(
                 seen_models[v.model] = v
             if len(seen_models) == 2:
                 break
-        # Return in order: model_a first, model_b second
+
         result = list(seen_models.values())
+
+        # Always return claude/anthropic model first, sarvam second
+        # so pills match content consistently
+        def model_priority(v):
+            if 'claude' in v.model.lower():
+                return 0
+            elif 'sarvam' in v.model.lower():
+                return 1
+            elif 'gpt' in v.model.lower():
+                return 2
+            return 3
+
+        result.sort(key=model_priority)
         return result
 
     return variants

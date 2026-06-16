@@ -43,6 +43,14 @@ export default function SessionItem({ session, isActive, onSelect, onRefresh, on
 
   const handleDelete = async () => {
     setShowMenu(false);
+    // Clear stale session ID from localStorage so it isn't reused
+    try {
+      const saved = JSON.parse(localStorage.getItem('voice_session_ids') || '{}');
+      Object.keys(saved).forEach((key) => {
+        if (saved[key] === session.id) saved[key] = null;
+      });
+      localStorage.setItem('voice_session_ids', JSON.stringify(saved));
+    } catch {}
     onDeleted(session.id);
     await copyService.deleteSession(session.id);
   };

@@ -105,6 +105,7 @@ export default function CompareTab({ brand, activeSessionId, onSessionCreated })
             }
           },
           onPaneDone: (data) => {
+            console.log('pane_done received:', data);
             if (data.index === 0) {
               setVariantA((prev) => ({
                 ...prev,

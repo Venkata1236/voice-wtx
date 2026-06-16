@@ -42,7 +42,14 @@ export default function MicButton({ onTranscript }) {
       mediaRecorder.start();
       setRecording(true);
     } catch (err) {
-      setError('Microphone access denied');
+      console.error('Mic error:', err);
+      if (err.name === 'NotAllowedError') {
+        setError('Microphone permission denied — allow in browser settings');
+      } else if (err.name === 'NotFoundError') {
+        setError('No microphone found');
+      } else {
+        setError(`Error: ${err.message}`);
+      }
     }
   };
 

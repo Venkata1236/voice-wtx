@@ -3,13 +3,6 @@ import { useAuthStore } from '../../store/authStore';
 export default function Topbar({ activeView, setActiveView, onOpenKB, onOpenSettings, forgeEnabled }) {
   const user = useAuthStore((state) => state.user);
 
-  const initials = user?.full_name
-    ?.split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2) || 'U';
-
   const tabs = [
     { key: 'single', label: 'Single' },
     { key: 'compare', label: 'Compare' },
@@ -80,24 +73,6 @@ export default function Topbar({ activeView, setActiveView, onOpenKB, onOpenSett
         <button onClick={onOpenSettings} style={sfBtnStyle}>
           Settings
         </button>
-        <div
-          style={{
-            width: '28px',
-            height: '28px',
-            borderRadius: '50%',
-            background: 'var(--accent)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '11px',
-            fontWeight: 700,
-            color: '#1E1E2A',
-            cursor: 'pointer',
-          }}
-          title={user?.full_name}
-        >
-          {initials}
-        </div>
       </div>
     </header>
   );

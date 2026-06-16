@@ -46,7 +46,7 @@ export default function WorkspacePage() {
   } else {
     setSessions([]);
   }
-}, [activeBrand, sessionIds]);
+}, [activeBrand?.id]);
 
   useEffect(() => {
     api.get('/api/settings/feature-flags').then((res) => {

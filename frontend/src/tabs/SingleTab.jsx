@@ -110,6 +110,10 @@ export default function SingleTab({ brand, activeSessionId, onSessionCreated }) 
         },
         onDone: () => {
           setLoading(false);
+          // Trigger sidebar refresh to show the new session
+          if (onSessionCreated) {
+            window.dispatchEvent(new CustomEvent('voice-session-created'));
+          }
         },
       }
     );

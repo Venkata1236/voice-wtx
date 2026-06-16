@@ -91,4 +91,14 @@ generateStream: async (payload, callbacks) => {
       }
     }
   },
+  renameSession: async (sessionId, title) => {
+    const response = await api.patch(`/api/copy/session/${sessionId}/rename`, null, {
+      params: { title },
+    });
+    return response.data;
+  },
+
+  deleteSession: async (sessionId) => {
+    await api.delete(`/api/copy/session/${sessionId}`);
+  },
 };

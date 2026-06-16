@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { kbService } from '../../services/kbService';
 import ToneTags from './ToneTags';
-import BrandRules from './BrandRules';
 import DocumentUpload from './DocumentUpload';
 
 export default function KBPanel({ brand, kb: initialKb, onClose }) {
@@ -34,24 +33,6 @@ export default function KBPanel({ brand, kb: initialKb, onClose }) {
     await kbService.updateKB(brand.id, { tone_tags: newTags });
   };
 
-  const handleAddRule = async (type, rule) => {
-    const key = type === 'do' ? 'rules_do' : 'rules_dont';
-    const apiKey = type === 'do' ? 'brand_rules_do' : 'brand_rules_dont';
-    const newRules = [...kb[key], rule];
-
-    setKb({ ...kb, [key]: newRules });
-    await kbService.updateKB(brand.id, { [apiKey]: newRules });
-  };
-
-  const handleRemoveRule = async (type, index) => {
-    const key = type === 'do' ? 'rules_do' : 'rules_dont';
-    const apiKey = type === 'do' ? 'brand_rules_do' : 'brand_rules_dont';
-    const newRules = kb[key].filter((_, i) => i !== index);
-
-    setKb({ ...kb, [key]: newRules });
-    await kbService.updateKB(brand.id, { [apiKey]: newRules });
-  };
-
   const brandDoc = kb.documents?.find((d) => d.doc_type === 'brand_document');
   const personasDoc = kb.documents?.find((d) => d.doc_type === 'audience_personas');
 
@@ -71,22 +52,6 @@ export default function KBPanel({ brand, kb: initialKb, onClose }) {
           <p style={labelStyle}>Tone tags</p>
           <ToneTags activeTags={kb.tone_tags || []} onToggle={handleToggleTag} />
         </div>
-
-        {/* DO rules */}
-        <BrandRules
-          title="Always do"
-          rules={kb.rules_do || kb.brand_rules_do || []}
-          onAdd={(rule) => handleAddRule('do', rule)}
-          onRemove={(i) => handleRemoveRule('do', i)}
-        />
-
-        {/* DONT rules */}
-        <BrandRules
-          title="Never do"
-          rules={kb.rules_dont || kb.brand_rules_dont || []}
-          onAdd={(rule) => handleAddRule('dont', rule)}
-          onRemove={(i) => handleRemoveRule('dont', i)}
-        />
 
         {/* Documents */}
         <div>

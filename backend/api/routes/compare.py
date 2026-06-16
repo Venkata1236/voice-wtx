@@ -194,22 +194,27 @@ async def compare_generate_stream(
 
             full_content = ""
 
-            async for chunk in stream_from_model(
-                model=model,
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-            ):
-                full_content += chunk
-                if 'KEYWORDS:' not in full_content:
-                    yield f"data: {json_lib.dumps({'type': 'token', 'index': pane_index, 'text': chunk})}\n\n"
-                else:
-                    copy_part = full_content.split('KEYWORDS:')[0]
-                    already_sent = full_content.replace(chunk, '')
-                    new_copy = copy_part[len(already_sent):]
-                    if new_copy:
-                        yield f"data: {json_lib.dumps({'type': 'token', 'index': pane_index, 'text': new_copy})}\n\n"
+            try:
+                async for chunk in stream_from_model(
+                    model=model,
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                ):
+                    full_content += chunk
+                    if 'KEYWORDS:' not in full_content:
+                        yield f"data: {json_lib.dumps({'type': 'token', 'index': pane_index, 'text': chunk})}\n\n"
+                    else:
+                        copy_part = full_content.split('KEYWORDS:')[0]
+                        already_sent = full_content.replace(chunk, '')
+                        new_copy = copy_part[len(already_sent):]
+                        if new_copy:
+                            yield f"data: {json_lib.dumps({'type': 'token', 'index': pane_index, 'text': new_copy})}\n\n"
+            except Exception as e:
+                logger.error(f"Streaming error for pane {pane_index} model {model}: {e}")
 
+            # Parse copy and keywords — always runs even if streaming errored
             final_copy, keywords = parse_copy_and_keywords(full_content)
+
             logger.info(
                 f"Compare stream pane {pane_index} | "
                 f"Model: {model} | "
@@ -218,6 +223,8 @@ async def compare_generate_stream(
                 f"Keywords: {keywords}"
             )
 
+            # Save to DB — always runs
+            variant_id = None
             try:
                 variant_response = (
                     supabase_admin.table("copy_variants")
@@ -236,9 +243,9 @@ async def compare_generate_stream(
                 )
                 variant_id = variant_response.data[0]["id"]
             except Exception as e:
-                variant_id = None
                 logger.error(f"Failed to save compare variant {pane_index}: {e}")
 
+            # pane_done — always runs regardless of DB save success
             yield f"data: {json_lib.dumps({'type': 'pane_done', 'index': pane_index, 'variant_id': variant_id, 'session_id': session_id, 'keywords': keywords, 'model': model, 'format': payload.format.value, 'brand_id': payload.brand_id, 'content': final_copy})}\n\n"
 
         yield f"data: {json_lib.dumps({'type': 'done'})}\n\n"

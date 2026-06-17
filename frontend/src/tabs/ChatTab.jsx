@@ -8,7 +8,7 @@ import ModelSelector from '../components/compare/ModelSelector';
 import MicButton from '../components/common/MicButton';
 import ChatTurn from '../components/chat/ChatTurn';
 
-export default function ChatTab({ brand, activeSessionId, onSessionCreated }) {
+export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode = 'single' }) {
   const kb = useBrandStore((state) => state.kb);
 
   const [turns, setTurns] = useState([]);
@@ -17,8 +17,6 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated }) {
   const [format, setFormat] = useState('caption');
   const [showBuilder, setShowBuilder] = useState(false);
 
-  // Per-message mode toggle — Single or Compare
-  const [mode, setMode] = useState('single');
   const [model, setModel] = useState('claude-haiku-4-5');
   const [modelA, setModelA] = useState('claude-haiku-4-5');
   const [modelB, setModelB] = useState('sarvam-30b');
@@ -298,7 +296,6 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated }) {
         {/* Mode toggle + format + model selectors */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <ModeToggle mode={mode} setMode={setMode} />
             <FormatChips value={format} onChange={setFormat} />
           </div>
 
@@ -340,7 +337,7 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated }) {
             onChange={(e) => setBriefText(e.target.value)}
             placeholder={
               mode === 'single'
-                ? 'Describe your brief...'
+                ? 'Describe your brief... (Single → 1 response)'
                 : 'Write one brief — sent to both models (Compare)...'
             }
             rows={3}
@@ -424,47 +421,6 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated }) {
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-// ── Single / Compare segmented toggle ──────────────────────────────
-function ModeToggle({ mode, setMode }) {
-  const opts = [
-    { key: 'single', label: 'Single' },
-    { key: 'compare', label: 'Compare' },
-  ];
-  return (
-    <div
-      style={{
-        display: 'flex',
-        background: 'var(--surface)',
-        borderRadius: '9px',
-        padding: '2px',
-        gap: '1px',
-        border: '1px solid var(--sep)',
-      }}
-    >
-      {opts.map((o) => (
-        <button
-          key={o.key}
-          onClick={() => setMode(o.key)}
-          style={{
-            padding: '5px 14px',
-            borderRadius: '7px',
-            border: 'none',
-            background: mode === o.key ? '#fff' : 'transparent',
-            color: mode === o.key ? '#1E1E2A' : 'var(--label3)',
-            fontSize: '12.5px',
-            fontWeight: mode === o.key ? 600 : 500,
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            boxShadow: mode === o.key ? 'var(--shadow-sm)' : 'none',
-          }}
-        >
-          {o.label}
-        </button>
-      ))}
     </div>
   );
 }

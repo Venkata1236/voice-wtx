@@ -3,9 +3,9 @@ import { useAuthStore } from '../../store/authStore';
 export default function Topbar({ activeView, setActiveView, onOpenKB, onOpenSettings, forgeEnabled }) {
   const user = useAuthStore((state) => state.user);
 
+  // Single + Compare are now one unified "Chat" view.
   const tabs = [
-    { key: 'single', label: 'Single' },
-    { key: 'compare', label: 'Compare' },
+    { key: 'chat', label: 'Chat' },
     ...(forgeEnabled ? [{ key: 'forge', label: '⚡ Forge' }] : []),
     { key: 'insights', label: 'Insights' },
   ];

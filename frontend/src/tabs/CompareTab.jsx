@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { compareService } from '../services/compareService';
 import { copyService } from '../services/copyService';
 import { useBrandStore } from '../store/brandStore';
@@ -22,43 +22,58 @@ export default function CompareTab({ brand, activeSessionId, onSessionCreated })
   const [error, setError] = useState('');
   const [sessionId, setSessionId] = useState(activeSessionId);
 
-  useEffect(() => {
-  if (activeSessionId) {
-    setSessionId(activeSessionId);
-    // Only load from DB if not currently streaming
-    const isStreaming = variantA?.streaming || variantB?.streaming;
-    if (!isStreaming) {
-      compareService.getSessionVariants(activeSessionId).then((variants) => {
-        if (variants.length >= 2) {
-          // Match by model — claude/gpt/gemini go left, sarvam goes right
-          const left = variants.find(v => !v.model.toLowerCase().includes('sarvam'));
-          const right = variants.find(v => v.model.toLowerCase().includes('sarvam'));
+  // BUG FIX #3: Track whether we are currently streaming so session load
+  // doesn't overwrite in-progress content.
+  const isStreamingRef = useRef(false);
 
-          if (left && right) {
-            setVariantA(left);
-            setVariantB(right);
-            setModelA(left.model);
-            setModelB(right.model);
-          } else {
-            // Fallback — just use first two in order
-            setVariantA(variants[0]);
-            setVariantB(variants[1]);
-            setModelA(variants[0].model);
-            setModelB(variants[1].model);
-          }
+  useEffect(() => {
+    if (activeSessionId) {
+      setSessionId(activeSessionId);
+
+      // Don't reload from DB while a stream is in progress
+      if (isStreamingRef.current) return;
+
+      // BUG FIX #4: Clear previous variants first so the UI doesn't show
+      // stale data from the previous session while the new one loads.
+      setVariantA(null);
+      setVariantB(null);
+      setBriefText('');
+
+      compareService.getSessionVariants(activeSessionId).then((variants) => {
+        if (!variants || variants.length === 0) return;
+
+        if (variants.length >= 2) {
+          // Backend already sorts: claude=0, sarvam=1, gpt=2, others=3
+          // So variants[0] is always left pane, variants[1] is always right pane.
+          const left = variants[0];
+          const right = variants[1];
+
+          setVariantA(left);
+          setVariantB(right);
+          // BUG FIX #5: Sync the model pill selectors to what's actually in the DB,
+          // so pills always match the content shown.
+          setModelA(left.model);
+          setModelB(right.model);
         } else if (variants.length === 1) {
           setVariantA(variants[0]);
           setModelA(variants[0].model);
+          setVariantB(null);
         }
+      }).catch(() => {
+        // If session load fails, just show empty state
+        setVariantA(null);
+        setVariantB(null);
       });
+    } else {
+      // New chat — clear everything
+      setSessionId(null);
+      setVariantA(null);
+      setVariantB(null);
+      setBriefText('');
+      setModelA('claude-haiku-4-5');
+      setModelB('sarvam-30b');
     }
-  } else {
-    setSessionId(null);
-    setVariantA(null);
-    setVariantB(null);
-    setBriefText('');
-  }
-}, [activeSessionId]);
+  }, [activeSessionId]);
 
   const handleBuildBrief = (fields) => {
     const lines = [`Format: ${format}`];
@@ -78,6 +93,7 @@ export default function CompareTab({ brand, activeSessionId, onSessionCreated })
 
     setLoading(true);
     setError('');
+    isStreamingRef.current = true;
 
     const emptyVariant = (model) => ({
       id: null,
@@ -111,13 +127,12 @@ export default function CompareTab({ brand, activeSessionId, onSessionCreated })
           },
           onToken: (index, text) => {
             if (index === 0) {
-              setVariantA((prev) => ({ ...prev, content: prev.content + text }));
+              setVariantA((prev) => ({ ...prev, content: (prev?.content || '') + text }));
             } else {
-              setVariantB((prev) => ({ ...prev, content: prev.content + text }));
+              setVariantB((prev) => ({ ...prev, content: (prev?.content || '') + text }));
             }
           },
           onPaneDone: (data) => {
-            console.log('pane_done received:', data);
             if (data.index === 0) {
               setVariantA((prev) => ({
                 ...prev,
@@ -148,12 +163,17 @@ export default function CompareTab({ brand, activeSessionId, onSessionCreated })
               }));
             }
           },
-          onDone: () => setLoading(false),
+          onDone: () => {
+            setLoading(false);
+            isStreamingRef.current = false;
+            window.dispatchEvent(new CustomEvent('voice-session-created'));
+          },
         }
       );
     } catch (err) {
       setError('Comparison failed. Please try again.');
       setLoading(false);
+      isStreamingRef.current = false;
     }
   };
 
@@ -163,6 +183,8 @@ export default function CompareTab({ brand, activeSessionId, onSessionCreated })
     if (variants.length >= 2) {
       setVariantA(variants[0]);
       setVariantB(variants[1]);
+      setModelA(variants[0].model);
+      setModelB(variants[1].model);
     }
   };
 
@@ -172,6 +194,8 @@ export default function CompareTab({ brand, activeSessionId, onSessionCreated })
     if (variants.length >= 2) {
       setVariantA(variants[0]);
       setVariantB(variants[1]);
+      setModelA(variants[0].model);
+      setModelB(variants[1].model);
     }
   };
 

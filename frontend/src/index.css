@@ -71,47 +71,15 @@ body {
   50% { box-shadow: 0 0 0 6px rgba(239,68,68,0); }
 }
 
-/* ── ChatGPT-style subtle scrollbars ──────────────────────────────── */
-/* Replaces the heavy default scrollbar with a thin, faint, rounded one
-   that stays out of the way until you hover it. */
-
-/* Firefox */
+/* ── Hidden scrollbars — fully removes the scroll line ────────────── */
+/* Scrolling still works (wheel / trackpad / drag); only the visible
+   scrollbar is hidden, like a clean ChatGPT surface. */
 * {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(0, 0, 0, 0.12) transparent;
+  scrollbar-width: none;        /* Firefox */
+  -ms-overflow-style: none;     /* IE / old Edge */
 }
-
-/* Chrome, Edge, Safari */
 *::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-*::-webkit-scrollbar-track {
-  background: transparent;
-}
-*::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.12);
-  border-radius: 8px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-*::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.25);
-  background-clip: padding-box;
-}
-*::-webkit-scrollbar-corner {
-  background: transparent;
-}
-
-/* On the dark sidebar use a light thumb so it stays subtle, not black-on-dark */
-aside *::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
-  background-clip: padding-box;
-}
-aside *::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.22);
-  background-clip: padding-box;
-}
-aside, aside * {
-  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+  width: 0;
+  height: 0;
+  display: none;                /* Chrome, Edge, Safari */
 }

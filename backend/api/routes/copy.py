@@ -3,7 +3,7 @@ from loguru import logger
 
 from db.supabase_client import get_supabase, get_supabase_admin
 from schemas.brief import BriefPayload
-from schemas.variant import VariantResponse, ApproveRequest, RejectRequest
+from schemas.variant import VariantResponse, ApproveRequest, RejectRequest, ChatTurn, ChatThread
 from api.middleware.auth_guard import get_current_user
 from api.middleware.role_guard import require_any
 from api.middleware.rate_limiter import limiter
@@ -12,6 +12,7 @@ from fastapi.responses import StreamingResponse
 from models.router import stream_from_model
 from kb.kb_builder import build_kb_context, format_kb_for_prompt
 import json
+import uuid
 
 router = APIRouter(prefix="/api/copy", tags=["Copy Generation"])
 
@@ -54,17 +55,17 @@ async def generate_copy(
     current_user: dict = Depends(require_any),
 ):
     """
-    Single mode generation.
+    Single mode generation (non-streaming).
     Generates 3 copy variants for the given brief.
-    Each variant goes through the full LangGraph pipeline:
-    KB → Generate → Score → Format
     """
     supabase_admin = get_supabase_admin()
 
-    # Build user prompt from brief fields
     user_prompt = build_user_prompt(payload)
 
-    # Get or create chat session
+    # One turn_id for all 3 variants of this send
+    turn_id = payload.turn_id or str(uuid.uuid4())
+
+    # Get or create chat session (unified 'chat' mode)
     session_id = payload.session_id
     if not session_id:
         session_response = (
@@ -72,7 +73,7 @@ async def generate_copy(
             .insert({
                 "user_id": current_user["id"],
                 "brand_id": payload.brand_id,
-                "mode": "single",
+                "mode": "chat",
                 "title": user_prompt[:50],
             })
             .execute()
@@ -87,7 +88,6 @@ async def generate_copy(
     )
 
     try:
-        # Run 3 variants in parallel through LangGraph
         results = await run_single_three_variants(
             brand_id=payload.brand_id,
             user_prompt=user_prompt,
@@ -102,7 +102,6 @@ async def generate_copy(
             detail=f"Copy generation failed: {str(e)}",
         )
 
-    # Save each variant to database
     variants = []
     for result in results:
         variant_response = (
@@ -116,6 +115,8 @@ async def generate_copy(
                 "content": result["copy"],
                 "score": result["score"],
                 "status": "pending",
+                "turn_id": turn_id,
+                "turn_type": "single",
             })
             .execute()
         )
@@ -124,6 +125,7 @@ async def generate_copy(
         variants.append(variant_obj)
 
     return variants
+
 
 # ── POST /api/copy/generate-stream ────────────────────────────────
 @router.post("/generate-stream")
@@ -134,19 +136,19 @@ async def generate_copy_stream(
     current_user: dict = Depends(require_any),
 ):
     """
-    Streaming version of generate.
-    Returns SSE stream — each token arrives as it's generated.
-    Frontend reads stream and updates UI in real time.
+    Streaming Single-mode generation — SSE.
     Sends 3 variants sequentially, each streamed token by token.
+    All 3 variants share one turn_id (turn_type = 'single').
     """
     supabase_admin = get_supabase_admin()
 
     user_prompt = build_user_prompt(payload)
 
-    # Create session
-    session_id = payload.session_id
+    # One turn_id for all 3 variants of this send
+    turn_id = payload.turn_id or str(uuid.uuid4())
 
     # Verify the session still exists — it may have been deleted
+    session_id = payload.session_id
     session_exists = False
     if session_id:
         check = (
@@ -165,7 +167,7 @@ async def generate_copy_stream(
             .insert({
                 "user_id": current_user["id"],
                 "brand_id": payload.brand_id,
-                "mode": "single",
+                "mode": "chat",
                 "title": user_prompt[:50],
             })
             .execute()
@@ -173,8 +175,8 @@ async def generate_copy_stream(
         session_id = session_response.data[0]["id"]
 
     async def event_generator():
-        # Send session_id first
-        yield f"data: {json.dumps({'type': 'session', 'session_id': session_id})}\n\n"
+        # Send session_id + turn_id first
+        yield f"data: {json.dumps({'type': 'session', 'session_id': session_id, 'turn_id': turn_id, 'turn_type': 'single'})}\n\n"
 
         # Build KB context once for all 3 variants
         kb_context = await build_kb_context(payload.brand_id)
@@ -191,18 +193,15 @@ async def generate_copy_stream(
                 user_prompt=user_prompt,
             ):
                 full_content += chunk
-                # Only send clean content tokens — strip KEYWORDS line from stream
                 if 'KEYWORDS:' not in full_content:
                     yield f"data: {json.dumps({'type': 'token', 'index': variant_index, 'text': chunk})}\n\n"
                 else:
-                    # We hit the KEYWORDS line — send only the copy part of this chunk
                     copy_part = full_content.split('KEYWORDS:')[0]
                     already_sent = full_content.replace(chunk, '')
                     new_copy = copy_part[len(already_sent):]
                     if new_copy:
                         yield f"data: {json.dumps({'type': 'token', 'index': variant_index, 'text': new_copy})}\n\n"
 
-            # Parse copy and keywords after full response received
             from agents.langgraph.nodes.format_node import parse_copy_and_keywords
             final_copy, keywords = parse_copy_and_keywords(full_content)
 
@@ -214,7 +213,6 @@ async def generate_copy_stream(
 
             # Save to database
             try:
-                import json as json_lib
                 variant_response = (
                     supabase_admin.table("copy_variants")
                     .insert({
@@ -226,7 +224,9 @@ async def generate_copy_stream(
                         "content": final_copy,
                         "score": 70,
                         "status": "pending",
-                        "keywords": json_lib.dumps(keywords),
+                        "keywords": json.dumps(keywords),
+                        "turn_id": turn_id,
+                        "turn_type": "single",
                     })
                     .execute()
                 )
@@ -235,10 +235,8 @@ async def generate_copy_stream(
                 variant_id = None
                 logger.error(f"Failed to save variant {variant_index}: {e}")
 
-            # Signal variant complete with metadata
-            yield f"data: {json.dumps({'type': 'variant_done', 'index': variant_index, 'variant_id': variant_id, 'session_id': session_id, 'keywords': keywords, 'model': payload.model.value, 'format': payload.format.value, 'brand_id': payload.brand_id, 'content': final_copy})}\n\n"
+            yield f"data: {json.dumps({'type': 'variant_done', 'index': variant_index, 'variant_id': variant_id, 'session_id': session_id, 'turn_id': turn_id, 'turn_type': 'single', 'keywords': keywords, 'model': payload.model.value, 'format': payload.format.value, 'brand_id': payload.brand_id, 'content': final_copy})}\n\n"
 
-        # Signal all done
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
     return StreamingResponse(
@@ -249,8 +247,8 @@ async def generate_copy_stream(
             "X-Accel-Buffering": "no",
         },
     )
-    
-    
+
+
 # ── POST /api/copy/approve ─────────────────────────────────────────
 @router.post("/approve")
 async def approve_variant(
@@ -258,14 +256,10 @@ async def approve_variant(
     current_user: dict = Depends(require_any),
 ):
     """
-    Approves a copy variant.
-    - Marks variant as approved
-    - Saves to approved_posts table — AI learns from this
-    - If already approved — clicking again unapproves it (toggle)
+    Approves a copy variant (toggle).
     """
     supabase_admin = get_supabase_admin()
 
-    # Fetch the variant
     variant_response = (
         supabase_admin.table("copy_variants")
         .select("*")
@@ -284,18 +278,15 @@ async def approve_variant(
 
     # ── Toggle — if already approved, unapprove ───────────────────
     if variant["status"] == "approved":
-        # Update variant status back to pending
         supabase_admin.table("copy_variants").update(
             {"status": "pending"}
         ).eq("id", payload.variant_id).execute()
 
-        # Remove from approved_posts
         supabase_admin.table("approved_posts").delete().eq(
             "variant_id", payload.variant_id
         ).execute()
 
         logger.info(f"Variant unapproved: {payload.variant_id}")
-
         return {"message": "Variant unapproved", "status": "pending"}
 
     # ── Approve ─────────────────────────────────────────────────────
@@ -303,7 +294,6 @@ async def approve_variant(
         {"status": "approved"}
     ).eq("id", payload.variant_id).execute()
 
-    # Save to approved_posts — AI learns from this for future generations
     supabase_admin.table("approved_posts").insert({
         "brand_id": payload.brand_id,
         "variant_id": payload.variant_id,
@@ -327,15 +317,11 @@ async def reject_variant(
     current_user: dict = Depends(require_any),
 ):
     """
-    Rejects a copy variant with a reason.
-    Immediately generates a revised version using the rejection
-    reason as additional guidance.
-    Rejected card stays visible but dimmed on frontend.
-    Returns the new revised variants.
+    Rejects a copy variant with a reason, then generates a revised
+    version. The revised variants form a NEW turn in the same chat.
     """
     supabase_admin = get_supabase_admin()
 
-    # Fetch the variant being rejected
     variant_response = (
         supabase_admin.table("copy_variants")
         .select("*")
@@ -352,14 +338,12 @@ async def reject_variant(
 
     variant = variant_response.data
 
-    # Determine final rejection reason text
     reason_text = (
         payload.custom_reason
         if payload.reason.value == "client_preference" and payload.custom_reason
         else payload.reason.value.replace("_", " ")
     )
 
-    # Mark variant as rejected
     supabase_admin.table("copy_variants").update({
         "status": "rejected",
         "rejection_reason": reason_text,
@@ -370,7 +354,6 @@ async def reject_variant(
         f"Reason: {reason_text} | By: {current_user['email']}"
     )
 
-    # ── Generate revised version using rejection reason as guidance ──
     revised_prompt = (
         f"{variant['brief']}\n\n"
         f"IMPORTANT — Previous attempt was rejected for: {reason_text}.\n"
@@ -393,7 +376,9 @@ async def reject_variant(
             detail=f"Revision generation failed: {str(e)}",
         )
 
-    # Save revised variants
+    # Revised variants form a new turn
+    revised_turn_id = str(uuid.uuid4())
+
     new_variants = []
     for result in results:
         new_variant_response = (
@@ -407,12 +392,83 @@ async def reject_variant(
                 "content": result["copy"],
                 "score": result["score"],
                 "status": "pending",
+                "turn_id": revised_turn_id,
+                "turn_type": "single",
             })
             .execute()
         )
-        new_variants.append(VariantResponse(**new_variant_response.data[0]))
+        new_variants.append(VariantResponse.from_db(new_variant_response.data[0]))
 
     return new_variants
+
+
+# ── GET /api/copy/thread/{session_id} ─────────────────────────────
+@router.get("/thread/{session_id}", response_model=ChatThread)
+async def get_chat_thread(
+    session_id: str,
+    current_user: dict = Depends(require_any),
+):
+    """
+    Returns the WHOLE chat as an ordered list of turns.
+    Each turn carries its type (single/compare) so the frontend can
+    render it in the right layout — this is what lets a reopened chat
+    replay a mix of Single and Compare turns exactly as they happened.
+    """
+    supabase = get_supabase()
+
+    response = (
+        supabase.table("copy_variants")
+        .select("*")
+        .eq("session_id", session_id)
+        .order("created_at")
+        .execute()
+    )
+
+    rows = response.data or []
+
+    # Group variants into turns (preserving chronological order)
+    turns_map = {}      # turn_id -> ChatTurn dict
+    order = []          # turn_id order of first appearance
+
+    for row in rows:
+        v = VariantResponse.from_db(row)
+        # Fallback for any legacy row missing turn data
+        tid = v.turn_id or f"legacy-{row['id']}"
+        ttype = v.turn_type or "single"
+
+        if tid not in turns_map:
+            turns_map[tid] = {
+                "turn_id": tid,
+                "turn_type": ttype,
+                "brief": v.brief,
+                "created_at": v.created_at,
+                "variants": [],
+            }
+            order.append(tid)
+
+        turns_map[tid]["variants"].append(v)
+
+    # For compare turns, order panes consistently: claude/gpt/gemini left, sarvam right
+    def pane_priority(variant):
+        m = variant.model.lower()
+        if "claude" in m:
+            return 0
+        if "gpt" in m:
+            return 1
+        if "gemini" in m:
+            return 2
+        if "sarvam" in m:
+            return 3
+        return 4
+
+    turns = []
+    for tid in order:
+        t = turns_map[tid]
+        if t["turn_type"] == "compare":
+            t["variants"].sort(key=pane_priority)
+        turns.append(ChatTurn(**t))
+
+    return ChatThread(session_id=session_id, turns=turns)
 
 
 # ── GET /api/copy/session/{session_id} ────────────────────────────
@@ -422,8 +478,8 @@ async def get_session_variants(
     current_user: dict = Depends(require_any),
 ):
     """
-    Returns all variants for a chat session.
-    Used when user clicks a recent session to restore the conversation.
+    Returns all variants for a chat session (flat list).
+    Kept for backward compatibility.
     """
     supabase = get_supabase()
 
@@ -445,9 +501,7 @@ async def get_brand_sessions(
     current_user: dict = Depends(require_any),
 ):
     """
-    Returns recent chat sessions for a brand.
-    Shown below brand name in sidebar.
-    Sessions older than 90 days are automatically excluded.
+    Returns recent chat sessions for a brand (all modes, unified list).
     """
     supabase = get_supabase()
 
@@ -470,10 +524,6 @@ async def pin_session(
     session_id: str,
     current_user: dict = Depends(require_any),
 ):
-    """
-    Toggles pin status on a chat session.
-    Pinned sessions are kept indefinitely and shown at top of sidebar.
-    """
     supabase_admin = get_supabase_admin()
 
     session_response = (
@@ -497,6 +547,7 @@ async def pin_session(
     ).eq("id", session_id).execute()
 
     return {"is_pinned": new_pin_status}
+
 
 # ── PATCH /api/copy/session/{session_id}/rename ───────────────────
 @router.patch("/session/{session_id}/rename")

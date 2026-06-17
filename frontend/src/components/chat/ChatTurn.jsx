@@ -24,8 +24,8 @@ export default function ChatTurn({ turn, onApprove, onReject }) {
         <div
           style={{
             maxWidth: '80%',
-            background: '#1E1E2A',
-            color: 'rgba(255,255,255,0.92)',
+            background: 'var(--surface2)',
+            color: 'var(--label)',
             padding: '10px 14px',
             borderRadius: '14px 14px 4px 14px',
             fontSize: '13.5px',

@@ -47,14 +47,14 @@ async def get_available_models(
     return {
         "priority": [
             {"value": "claude-haiku-4-5", "label": "Claude Haiku 4.5", "provider": "Anthropic"},
-            {"value": "sarvam-m", "label": "Sarvam M", "provider": "Sarvam"},
+            {"value": "sarvam-30b", "label": "Sarvam M", "provider": "Sarvam"},
         ],
         "alternatives": [
             {"value": "gpt-4o-mini", "label": "GPT-4o Mini", "provider": "OpenAI"},
             {"value": "gemini-1.5-flash", "label": "Gemini 1.5 Flash", "provider": "Google"},
         ],
         "default_a": "claude-haiku-4-5",
-        "default_b": "sarvam-m",
+        "default_b": "sarvam-30b",
     }
 
 
@@ -182,7 +182,21 @@ async def compare_generate_stream(
     user_prompt = build_user_prompt(payload)
 
     session_id = payload.session_id
-    if not session_id:
+
+    # Verify the session still exists — it may have been deleted while ID was cached in localStorage
+    session_exists = False
+    if session_id:
+        check = (
+            supabase_admin.table("chat_sessions")
+            .select("id")
+            .eq("id", session_id)
+            .maybe_single()
+            .execute()
+        )
+        session_exists = bool(check and check.data)
+
+    # Create new session if none provided OR the provided one was deleted
+    if not session_exists:
         session_response = (
             supabase_admin.table("chat_sessions")
             .insert({

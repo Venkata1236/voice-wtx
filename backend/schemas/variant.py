@@ -36,6 +36,9 @@ class VariantResponse(BaseModel):
     agent_critic: Optional[str] = None
     created_at: datetime
     keywords: Optional[list] = []
+    # ── Turn tracking — groups variants into conversation turns ────────
+    turn_id: Optional[str] = None
+    turn_type: Optional[str] = None  # 'single' | 'compare'
 
     @classmethod
     def from_db(cls, data: dict):
@@ -45,10 +48,28 @@ class VariantResponse(BaseModel):
                 data['keywords'] = json.loads(data['keywords'])
             except Exception:
                 data['keywords'] = []
+        # turn_id comes from DB as uuid — cast to str for the response
+        if data.get('turn_id') is not None:
+            data['turn_id'] = str(data['turn_id'])
         return cls(**data)
 
     class Config:
         from_attributes = True
+
+
+# ── A single conversation turn (one "send") ────────────────────────
+class ChatTurn(BaseModel):
+    turn_id: str
+    turn_type: str           # 'single' | 'compare'
+    brief: str
+    created_at: datetime
+    variants: list[VariantResponse]
+
+
+# ── Full chat thread — ordered list of turns ───────────────────────
+class ChatThread(BaseModel):
+    session_id: str
+    turns: list[ChatTurn]
 
 
 class ApproveRequest(BaseModel):

@@ -11,6 +11,7 @@ import { useBrandStore } from '../store/brandStore';
 
 export default function WorkspacePage() {
   const [activeView, setActiveView] = useState('chat');
+  const [chatMode, setChatMode] = useState('single'); // Single | Compare (per the top bar)
   const [kbOpen, setKbOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sessions, setSessions] = useState([]);
@@ -74,6 +75,12 @@ export default function WorkspacePage() {
     setActiveView(view);
   };
 
+  // Picking Single/Compare from the top bar sets the mode and shows the chat
+  const handleSetMode = (m) => {
+    setChatMode(m);
+    setActiveView('chat');
+  };
+
   // Clicking a session: forge sessions open in Forge, everything else
   // (chat / legacy single / legacy compare) opens in the unified Chat view.
   const handleSelectSession = (session) => {
@@ -102,6 +109,7 @@ export default function WorkspacePage() {
             brand={activeBrand}
             activeSessionId={activeSessionId}
             onSessionCreated={(id) => setActiveSessionId(id)}
+            mode={chatMode}
           />
         );
       case 'forge':
@@ -124,6 +132,8 @@ export default function WorkspacePage() {
       <Topbar
         activeView={activeView}
         setActiveView={handleViewChange}
+        mode={chatMode}
+        setMode={handleSetMode}
         onOpenKB={() => setKbOpen(!kbOpen)}
         onOpenSettings={() => setSettingsOpen(true)}
         forgeEnabled={forgeEnabled}

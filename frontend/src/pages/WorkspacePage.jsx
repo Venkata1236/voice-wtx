@@ -38,7 +38,7 @@ export default function WorkspacePage() {
   const activeBrand = useBrandStore((state) => state.activeBrand);
   const kb = useBrandStore((state) => state.kb);
 
-  // Fetch sessions helper
+  // Fetch sessions helper — returns ALL sessions for brand (single + compare + forge)
   const fetchSessions = () => {
     if (activeBrand?.id) {
       api.get(`/api/copy/sessions/${activeBrand.id}`).then((res) => {
@@ -76,8 +76,20 @@ export default function WorkspacePage() {
     setActiveView(view);
   };
 
+  // BUG FIX #1: When clicking a session from the sidebar, also switch to the
+  // correct tab that matches the session's mode (single/compare/forge).
   const handleSelectSession = (session) => {
-    setActiveSessionId(session.id);
+    const mode = session.mode || 'single';
+    // Switch tab to match the session mode
+    if (mode !== activeView) {
+      setActiveView(mode);
+    }
+    // Set session ID for that mode
+    setSessionIds((prev) => {
+      const updated = { ...prev, [mode]: session.id };
+      localStorage.setItem('voice_session_ids', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const renderTab = () => {
@@ -136,6 +148,7 @@ export default function WorkspacePage() {
           onNewChat={handleNewChat}
           sessions={sessions}
           activeSessionId={activeSessionId}
+          activeView={activeView}
           onSelectSession={handleSelectSession}
           onRefreshSessions={fetchSessions}
         />

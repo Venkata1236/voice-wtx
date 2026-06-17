@@ -46,12 +46,12 @@ async def get_available_models(
     """
     return {
         "priority": [
-            {"value": "claude-haiku-4-5", "label": "Claude Haiku 4.5", "provider": "Anthropic"},
-            {"value": "sarvam-30b", "label": "Sarvam 30B", "provider": "Sarvam"},
+            {"value": "claude-haiku-4-5", "label": "Haiku 4.5", "provider": ""},
+            {"value": "sarvam-30B", "label": "Sarvam", "provider": ""},
         ],
         "alternatives": [
-            {"value": "gpt-4o-mini", "label": "GPT-4o Mini", "provider": "OpenAI"},
-            {"value": "gemini-1.5-flash", "label": "Gemini 1.5 Flash", "provider": "Google"},
+            {"value": "gpt-4o-mini", "label": "GPT", "provider": ""},
+            {"value": "gemini-1.5-flash", "label": "Gemini", "provider": ""},
         ],
         "default_a": "claude-haiku-4-5",
         "default_b": "sarvam-30b",

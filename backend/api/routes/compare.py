@@ -16,6 +16,7 @@ from models.router import stream_from_model
 from kb.kb_builder import build_kb_context, format_kb_for_prompt
 from agents.langgraph.nodes.format_node import parse_copy_and_keywords
 import json as json_lib
+import uuid
 
 router = APIRouter(prefix="/api/compare", tags=["Compare Mode"])
 
@@ -41,13 +42,11 @@ async def get_available_models(
 ):
     """
     Returns models available for Compare mode, in priority order.
-    Frontend uses this to populate the model pill dropdowns.
-    Claude and Sarvam appear first as defaults.
     """
     return {
         "priority": [
             {"value": "claude-haiku-4-5", "label": "Claude Haiku 4.5", "provider": "Anthropic"},
-            {"value": "sarvam-30b", "label": "Sarvam M", "provider": "Sarvam"},
+            {"value": "sarvam-30b", "label": "Sarvam 30B", "provider": "Sarvam"},
         ],
         "alternatives": [
             {"value": "gpt-4o-mini", "label": "GPT-4o Mini", "provider": "OpenAI"},
@@ -67,19 +66,17 @@ async def compare_generate(
     current_user: dict = Depends(require_any),
 ):
     """
-    Compare mode generation.
-    Default — Claude Haiku vs Sarvam M.
-    User can override model_a / model_b to any supported model.
-    Sends the same brief to both models simultaneously.
-    Returns both outputs side by side for comparison.
-    Both receive identical KB context — only the model differs.
+    Compare mode generation (non-streaming).
+    Both variants share one turn_id (turn_type = 'compare').
     """
     supabase_admin = get_supabase_admin()
 
-    # Build user prompt from brief fields — same as Single mode
     user_prompt = build_user_prompt(payload)
 
-    # Get or create chat session
+    # One turn_id for both panes of this send
+    turn_id = payload.turn_id or str(uuid.uuid4())
+
+    # Get or create chat session (unified 'chat' mode)
     session_id = payload.session_id
 
     session_exists = False
@@ -99,7 +96,7 @@ async def compare_generate(
             .insert({
                 "user_id": current_user["id"],
                 "brand_id": payload.brand_id,
-                "mode": "compare",
+                "mode": "chat",
                 "title": user_prompt[:50],
             })
             .execute()
@@ -129,7 +126,6 @@ async def compare_generate(
             detail=f"Compare generation failed: {str(e)}",
         )
 
-    # Save both variants to database
     variant_a_response = (
         supabase_admin.table("copy_variants")
         .insert({
@@ -141,6 +137,8 @@ async def compare_generate(
             "content": result["model_a"]["copy"],
             "score": result["model_a"]["score"],
             "status": "pending",
+            "turn_id": turn_id,
+            "turn_type": "compare",
         })
         .execute()
     )
@@ -156,15 +154,18 @@ async def compare_generate(
             "content": result["model_b"]["copy"],
             "score": result["model_b"]["score"],
             "status": "pending",
+            "turn_id": turn_id,
+            "turn_type": "compare",
         })
         .execute()
     )
 
     return CompareResponse(
         session_id=session_id,
-        variant_a=VariantResponse(**variant_a_response.data[0]),
-        variant_b=VariantResponse(**variant_b_response.data[0]),
+        variant_a=VariantResponse.from_db(variant_a_response.data[0]),
+        variant_b=VariantResponse.from_db(variant_b_response.data[0]),
     )
+
 
 # ── POST /api/compare/stream ───────────────────────────────────────
 @router.post("/stream")
@@ -175,15 +176,19 @@ async def compare_generate_stream(
     current_user: dict = Depends(require_any),
 ):
     """
-    Streaming Compare mode — both models stream simultaneously.
-    Left pane (model A) and right pane (model B) fill in real time.
+    Streaming Compare mode — both panes stream sequentially.
+    Both variants share one turn_id (turn_type = 'compare') so the
+    turn replays as a side-by-side pair when the chat is reopened.
     """
     supabase_admin = get_supabase_admin()
     user_prompt = build_user_prompt(payload)
 
+    # One turn_id for both panes of this send
+    turn_id = payload.turn_id or str(uuid.uuid4())
+
     session_id = payload.session_id
 
-    # Verify the session still exists — it may have been deleted while ID was cached in localStorage
+    # Verify the session still exists — it may have been deleted while cached in localStorage
     session_exists = False
     if session_id:
         check = (
@@ -202,7 +207,7 @@ async def compare_generate_stream(
             .insert({
                 "user_id": current_user["id"],
                 "brand_id": payload.brand_id,
-                "mode": "compare",
+                "mode": "chat",
                 "title": user_prompt[:50],
             })
             .execute()
@@ -210,7 +215,7 @@ async def compare_generate_stream(
         session_id = session_response.data[0]["id"]
 
     async def event_generator():
-        yield f"data: {json_lib.dumps({'type': 'session', 'session_id': session_id})}\n\n"
+        yield f"data: {json_lib.dumps({'type': 'session', 'session_id': session_id, 'turn_id': turn_id, 'turn_type': 'compare'})}\n\n"
 
         kb_context = await build_kb_context(payload.brand_id)
         system_prompt = format_kb_for_prompt(kb_context)
@@ -238,7 +243,6 @@ async def compare_generate_stream(
             except Exception as e:
                 logger.error(f"Streaming error for pane {pane_index} model {model}: {e}")
 
-            # Parse copy and keywords — always runs even if streaming errored
             final_copy, keywords = parse_copy_and_keywords(full_content)
 
             logger.info(
@@ -249,7 +253,6 @@ async def compare_generate_stream(
                 f"Keywords: {keywords}"
             )
 
-            # Save to DB — always runs
             variant_id = None
             try:
                 variant_response = (
@@ -264,6 +267,8 @@ async def compare_generate_stream(
                         "score": 70,
                         "status": "pending",
                         "keywords": json_lib.dumps(keywords),
+                        "turn_id": turn_id,
+                        "turn_type": "compare",
                     })
                     .execute()
                 )
@@ -271,8 +276,7 @@ async def compare_generate_stream(
             except Exception as e:
                 logger.error(f"Failed to save compare variant {pane_index}: {e}")
 
-            # pane_done — always runs regardless of DB save success
-            yield f"data: {json_lib.dumps({'type': 'pane_done', 'index': pane_index, 'variant_id': variant_id, 'session_id': session_id, 'keywords': keywords, 'model': model, 'format': payload.format.value, 'brand_id': payload.brand_id, 'content': final_copy})}\n\n"
+            yield f"data: {json_lib.dumps({'type': 'pane_done', 'index': pane_index, 'variant_id': variant_id, 'session_id': session_id, 'turn_id': turn_id, 'turn_type': 'compare', 'keywords': keywords, 'model': model, 'format': payload.format.value, 'brand_id': payload.brand_id, 'content': final_copy})}\n\n"
 
         yield f"data: {json_lib.dumps({'type': 'done'})}\n\n"
 
@@ -284,7 +288,8 @@ async def compare_generate_stream(
             "X-Accel-Buffering": "no",
         },
     )
-    
+
+
 # ── GET /api/compare/sessions/{brand_id} ──────────────────────────
 @router.get("/sessions/{brand_id}")
 async def get_compare_sessions(
@@ -292,7 +297,9 @@ async def get_compare_sessions(
     current_user: dict = Depends(require_any),
 ):
     """
-    Returns recent Compare mode sessions for a brand.
+    Returns recent sessions for a brand.
+    NOTE: In the unified Chat model the sidebar uses /api/copy/sessions
+    instead. Kept for backward compatibility.
     """
     supabase = get_supabase()
 
@@ -301,7 +308,6 @@ async def get_compare_sessions(
         .select("*")
         .eq("brand_id", brand_id)
         .eq("user_id", current_user["id"])
-        .eq("mode", "compare")
         .order("is_pinned", desc=True)
         .order("updated_at", desc=True)
         .execute()
@@ -316,6 +322,11 @@ async def get_compare_session_variants(
     session_id: str,
     current_user: dict = Depends(require_any),
 ):
+    """
+    Returns the two latest distinct-model variants for a compare session.
+    Kept for backward compatibility — the unified Chat view uses
+    /api/copy/thread/{session_id} instead.
+    """
     supabase = get_supabase()
 
     response = (
@@ -338,8 +349,6 @@ async def get_compare_session_variants(
 
         result = list(seen_models.values())
 
-        # Always return claude/anthropic model first, sarvam second
-        # so pills match content consistently
         def model_priority(v):
             if 'claude' in v.model.lower():
                 return 0

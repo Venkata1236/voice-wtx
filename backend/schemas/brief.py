@@ -49,3 +49,8 @@ class BriefPayload(BaseModel):
     model: ModelType = ModelType.claude_haiku
     raw_brief: Optional[str] = None
     session_id: Optional[str] = None
+    # ── Turn tracking ──────────────────────────────────────────────
+    # Frontend generates one turn_id per send so all variants in that
+    # send (single = 3, compare = 2) are grouped into one chat turn.
+    # If omitted, the backend generates one.
+    turn_id: Optional[str] = None

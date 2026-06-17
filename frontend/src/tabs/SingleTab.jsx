@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useBrandStore } from '../store/brandStore';
 import { copyService } from '../services/copyService';
 import BriefBuilder from '../components/brief/BriefBuilder';
@@ -19,20 +19,32 @@ export default function SingleTab({ brand, activeSessionId, onSessionCreated }) 
   const [error, setError] = useState('');
   const [sessionId, setSessionId] = useState(activeSessionId);
 
+  // BUG FIX: track streaming state so session load doesn't race with stream
+  const isStreamingRef = useRef(false);
+
   useEffect(() => {
-  if (activeSessionId) {
-    setSessionId(activeSessionId);
-    // Only load from DB if not currently streaming
-    const isStreaming = variants.some(v => v.streaming);
-    if (!isStreaming) {
-      copyService.getSessionVariants(activeSessionId).then(setVariants);
+    if (activeSessionId) {
+      setSessionId(activeSessionId);
+
+      // Don't overwrite in-progress streaming
+      if (isStreamingRef.current) return;
+
+      // Clear previous content first so stale data never shows
+      setVariants([]);
+      setBriefText('');
+
+      copyService.getSessionVariants(activeSessionId).then((loaded) => {
+        setVariants(loaded);
+      }).catch(() => {
+        setVariants([]);
+      });
+    } else {
+      // New chat
+      setSessionId(null);
+      setVariants([]);
+      setBriefText('');
     }
-  } else {
-    setSessionId(null);
-    setVariants([]);
-    setBriefText('');
-  }
-}, [activeSessionId]);
+  }, [activeSessionId]);
 
   const handleBuildBrief = (fields) => {
     const lines = [`Format: ${format}`];
@@ -48,80 +60,78 @@ export default function SingleTab({ brand, activeSessionId, onSessionCreated }) 
   };
 
   const handleGenerate = async () => {
-  if (!briefText.trim()) return;
+    if (!briefText.trim()) return;
 
-  setLoading(true);
-  setError('');
+    setLoading(true);
+    setError('');
+    isStreamingRef.current = true;
 
-  // Initialize 3 empty streaming variants
-  const streamingVariants = [
-    { id: null, content: '', keywords: [], score: 70, status: 'pending', model: model, format, brand_id: brand.id, session_id: null, streaming: true },
-    { id: null, content: '', keywords: [], score: 70, status: 'pending', model: model, format, brand_id: brand.id, session_id: null, streaming: true },
-    { id: null, content: '', keywords: [], score: 70, status: 'pending', model: model, format, brand_id: brand.id, session_id: null, streaming: true },
-  ];
-  setVariants([...streamingVariants]);
+    // Initialize 3 empty streaming variants
+    const streamingVariants = [
+      { id: null, content: '', keywords: [], score: 70, status: 'pending', model: model, format, brand_id: brand.id, session_id: null, streaming: true },
+      { id: null, content: '', keywords: [], score: 70, status: 'pending', model: model, format, brand_id: brand.id, session_id: null, streaming: true },
+      { id: null, content: '', keywords: [], score: 70, status: 'pending', model: model, format, brand_id: brand.id, session_id: null, streaming: true },
+    ];
+    setVariants([...streamingVariants]);
 
-  try {
-    await copyService.generateStream(
-      {
-        brand_id: brand.id,
-        format,
-        model,
-        raw_brief: briefText,
-        session_id: sessionId,
-      },
-      {
-        onSession: (id) => {
-          setSessionId(id);
-          onSessionCreated(id);
+    try {
+      await copyService.generateStream(
+        {
+          brand_id: brand.id,
+          format,
+          model,
+          raw_brief: briefText,
+          session_id: sessionId,
         },
-        onVariantStart: (index) => {
-          // variant card already shown as empty
-        },
-        onToken: (index, text) => {
-          setVariants((prev) => {
-            const updated = [...prev];
-            updated[index] = {
-              ...updated[index],
-              content: updated[index].content + text,
-            };
-            return updated;
-          });
-        },
-        onVariantDone: (data) => {
-          setVariants((prev) => {
-            const updated = [...prev];
-            const existing = updated[data.index] || {};
-            updated[data.index] = {
-              ...existing,
-              id: data.variant_id,
-              content: data.content || existing.content || '',
-              keywords: data.keywords || [],
-              score: 70,
-              status: 'pending',
-              model: data.model,
-              format: data.format,
-              brand_id: data.brand_id,
-              session_id: data.session_id,
-              streaming: false,
-            };
-            return updated;
-          });
-        },
-        onDone: () => {
-          setLoading(false);
-          // Trigger sidebar refresh to show the new session
-          if (onSessionCreated) {
+        {
+          onSession: (id) => {
+            setSessionId(id);
+            onSessionCreated(id);
+          },
+          onVariantStart: () => {},
+          onToken: (index, text) => {
+            setVariants((prev) => {
+              const updated = [...prev];
+              updated[index] = {
+                ...updated[index],
+                content: updated[index].content + text,
+              };
+              return updated;
+            });
+          },
+          onVariantDone: (data) => {
+            setVariants((prev) => {
+              const updated = [...prev];
+              const existing = updated[data.index] || {};
+              updated[data.index] = {
+                ...existing,
+                id: data.variant_id,
+                content: data.content || existing.content || '',
+                keywords: data.keywords || [],
+                score: 70,
+                status: 'pending',
+                model: data.model,
+                format: data.format,
+                brand_id: data.brand_id,
+                session_id: data.session_id,
+                streaming: false,
+              };
+              return updated;
+            });
+          },
+          onDone: () => {
+            setLoading(false);
+            isStreamingRef.current = false;
             window.dispatchEvent(new CustomEvent('voice-session-created'));
-          }
-        },
-      }
-    );
-  } catch (err) {
-    setError('Generation failed. Please try again.');
-    setLoading(false);
-  }
-};
+          },
+        }
+      );
+    } catch (err) {
+      setError('Generation failed. Please try again.');
+      setLoading(false);
+      isStreamingRef.current = false;
+    }
+  };
 
   const handleApprove = async (variantId) => {
     await copyService.approve(variantId, brand.id);

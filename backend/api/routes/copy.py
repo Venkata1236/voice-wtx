@@ -12,6 +12,7 @@ from fastapi.responses import StreamingResponse
 from models.router import stream_from_model
 from kb.kb_builder import build_kb_context, format_kb_for_prompt
 from utils.titler import generate_session_title
+from utils.length_guide import build_length_instruction
 import json
 import uuid
 
@@ -183,6 +184,7 @@ async def generate_copy_stream(
         # Build KB context once for all 3 variants
         kb_context = await build_kb_context(payload.brand_id)
         system_prompt = format_kb_for_prompt(kb_context)
+        system_prompt += "\n\n" + build_length_instruction(payload.format.value, user_prompt)
 
         # Single mode now returns ONE response (was 3)
         for variant_index in range(1):

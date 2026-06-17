@@ -2,10 +2,10 @@ import VariantCard from '../variants/VariantCard';
 
 // ── Pretty model labels ────────────────────────────────────────────
 const MODEL_LABELS = {
-  'claude-haiku-4-5': 'Claude Haiku 4.5',
-  'sarvam-30b': 'Sarvam 30B',
-  'gpt-4o-mini': 'GPT-4o Mini',
-  'gemini-1.5-flash': 'Gemini Flash',
+  'claude-haiku-4-5': 'Haiku 4.5',
+  'sarvam-30b': 'Sarvam',
+  'gpt-4o-mini': 'GPT',
+  'gemini-1.5-flash': 'Gemini',
 };
 const prettyModel = (m) => MODEL_LABELS[m] || m;
 

@@ -1,7 +1,7 @@
 const MODELS = {
   priority: [
     { value: 'claude-haiku-4-5', label: 'Claude Haiku 4.5', provider: 'Anthropic', color: '#D97706' },
-    { value: 'sarvam-30b', label: 'Sarvam 30B', provider: 'Sarvam', color: '#ea580c' },
+    { value: 'sarvam-30b', label: 'Sarvam', provider: 'Sarvam', color: '#ea580c' },
   ],
   alternatives: [
     { value: 'gpt-4o-mini', label: 'GPT-4o Mini', provider: 'OpenAI', color: '#10a37f' },

@@ -340,7 +340,7 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated }) {
             onChange={(e) => setBriefText(e.target.value)}
             placeholder={
               mode === 'single'
-                ? 'Describe your brief... (Single → 3 variants)'
+                ? 'Describe your brief...'
                 : 'Write one brief — sent to both models (Compare)...'
             }
             rows={3}

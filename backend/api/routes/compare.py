@@ -16,6 +16,7 @@ from models.router import stream_from_model
 from kb.kb_builder import build_kb_context, format_kb_for_prompt
 from agents.langgraph.nodes.format_node import parse_copy_and_keywords
 from utils.titler import generate_session_title
+from utils.length_guide import build_length_instruction
 import json as json_lib
 import uuid
 
@@ -46,12 +47,12 @@ async def get_available_models(
     """
     return {
         "priority": [
-            {"value": "claude-haiku-4-5", "label": "Haiku 4.5", "provider": ""},
-            {"value": "sarvam-30B", "label": "Sarvam", "provider": ""},
+            {"value": "claude-haiku-4-5", "label": "Claude Haiku 4.5", "provider": "Anthropic"},
+            {"value": "sarvam-30b", "label": "Sarvam 30B", "provider": "Sarvam"},
         ],
         "alternatives": [
-            {"value": "gpt-4o-mini", "label": "GPT", "provider": ""},
-            {"value": "gemini-1.5-flash", "label": "Gemini", "provider": ""},
+            {"value": "gpt-4o-mini", "label": "GPT-4o Mini", "provider": "OpenAI"},
+            {"value": "gemini-1.5-flash", "label": "Gemini 1.5 Flash", "provider": "Google"},
         ],
         "default_a": "claude-haiku-4-5",
         "default_b": "sarvam-30b",
@@ -221,6 +222,7 @@ async def compare_generate_stream(
 
         kb_context = await build_kb_context(payload.brand_id)
         system_prompt = format_kb_for_prompt(kb_context)
+        system_prompt += "\n\n" + build_length_instruction(payload.format.value, user_prompt)
 
         for pane_index, model in enumerate([payload.model_a.value, payload.model_b.value]):
             yield f"data: {json_lib.dumps({'type': 'pane_start', 'index': pane_index, 'model': model})}\n\n"

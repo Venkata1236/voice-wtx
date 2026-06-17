@@ -3,7 +3,7 @@ import VariantCard from '../variants/VariantCard';
 // ── Pretty model labels ────────────────────────────────────────────
 const MODEL_LABELS = {
   'claude-haiku-4-5': 'Haiku 4.5',
-  'sarvam-30b': 'Sarvam',
+  'sarvam   ': 'Sarvam',
   'gpt-4o-mini': 'GPT',
   'gemini-1.5-flash': 'Gemini',
 };

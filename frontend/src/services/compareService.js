@@ -57,6 +57,7 @@ export const compareService = {
         try {
           const data = JSON.parse(line.slice(6));
           if (data.type === 'session') callbacks.onSession?.(data.session_id, data.turn_id, data.turn_type);
+          else if (data.type === 'title') callbacks.onTitle?.(data.session_id, data.title);
           else if (data.type === 'pane_start') callbacks.onPaneStart?.(data.index, data.model);
           else if (data.type === 'token') callbacks.onToken?.(data.index, data.text);
           else if (data.type === 'pane_done') callbacks.onPaneDone?.(data);

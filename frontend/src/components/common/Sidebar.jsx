@@ -3,9 +3,7 @@ import { useBrandStore } from '../../store/brandStore';
 import { useAuthStore } from '../../store/authStore';
 import SessionItem from './SessionItem';
 
-// BUG FIX #2: Sidebar now receives activeView so it can show a mode badge
-// on each session, and visually groups them by mode.
-export default function Sidebar({ onNewChat, sessions = [], activeSessionId, activeView, onSelectSession, onRefreshSessions }) {
+export default function Sidebar({ onNewChat, sessions = [], activeSessionId, onSelectSession, onRefreshSessions }) {
   const { brands, activeBrand, fetchBrands, setActiveBrand, loading } = useBrandStore();
   const { user, logout } = useAuthStore();
 
@@ -19,23 +17,6 @@ export default function Sidebar({ onNewChat, sessions = [], activeSessionId, act
     .join('')
     .toUpperCase()
     .slice(0, 2) || 'U';
-
-  // Group sessions by mode so the sidebar shows them clearly
-  const singleSessions = sessions.filter((s) => s.mode === 'single');
-  const compareSessions = sessions.filter((s) => s.mode === 'compare');
-  const forgeSessions = sessions.filter((s) => s.mode === 'forge');
-
-  const renderSessions = (list) =>
-    list.map((session) => (
-      <SessionItem
-        key={session.id}
-        session={session}
-        isActive={activeSessionId === session.id}
-        onSelect={onSelectSession}
-        onRefresh={onRefreshSessions}
-        onDeleted={() => onRefreshSessions()}
-      />
-    ));
 
   return (
     <aside
@@ -127,35 +108,25 @@ export default function Sidebar({ onNewChat, sessions = [], activeSessionId, act
           );
         })}
 
-        {/* Recent sessions — grouped by mode */}
+        {/* Recent chats — one unified list (single + compare live together) */}
         {activeBrand && (
           <>
-            {singleSessions.length > 0 && (
-              <>
-                <div style={sectionLabelStyle}>Single</div>
-                {renderSessions(singleSessions)}
-              </>
-            )}
-            {compareSessions.length > 0 && (
-              <>
-                <div style={sectionLabelStyle}>Compare</div>
-                {renderSessions(compareSessions)}
-              </>
-            )}
-            {forgeSessions.length > 0 && (
-              <>
-                <div style={sectionLabelStyle}>Forge</div>
-                {renderSessions(forgeSessions)}
-              </>
-            )}
+            <div style={sectionLabelStyle}>Chats — {activeBrand.name}</div>
             {sessions.length === 0 && (
-              <>
-                <div style={sectionLabelStyle}>Recents</div>
-                <div style={{ padding: '6px 16px 2px', fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>
-                  No chats yet
-                </div>
-              </>
+              <div style={{ padding: '6px 16px 2px', fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>
+                No chats yet
+              </div>
             )}
+            {sessions.map((session) => (
+              <SessionItem
+                key={session.id}
+                session={session}
+                isActive={activeSessionId === session.id}
+                onSelect={onSelectSession}
+                onRefresh={onRefreshSessions}
+                onDeleted={() => onRefreshSessions()}
+              />
+            ))}
           </>
         )}
       </div>

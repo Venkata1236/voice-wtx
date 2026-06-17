@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../services/api';
 import Topbar from '../components/common/Topbar';
 import Sidebar from '../components/common/Sidebar';
-import SingleTab from '../tabs/SingleTab';
-import CompareTab from '../tabs/CompareTab';
+import ChatTab from '../tabs/ChatTab';
 import ForgeTab from '../tabs/ForgeTab';
 import InsightsTab from '../tabs/InsightsTab';
 import KBPanel from '../components/kb/KBPanel';
@@ -11,19 +10,20 @@ import SettingsPage from './SettingsPage';
 import { useBrandStore } from '../store/brandStore';
 
 export default function WorkspacePage() {
-  const [activeView, setActiveView] = useState('single');
+  const [activeView, setActiveView] = useState('chat');
   const [kbOpen, setKbOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sessions, setSessions] = useState([]);
   const [forgeEnabled, setForgeEnabled] = useState(false);
 
-  // Per-tab session memory — each mode remembers its own session
+  // Per-view session memory — chat and forge each remember their session
   const [sessionIds, setSessionIds] = useState(() => {
     try {
       const saved = localStorage.getItem('voice_session_ids');
-      return saved ? JSON.parse(saved) : { single: null, compare: null, forge: null };
+      const parsed = saved ? JSON.parse(saved) : {};
+      return { chat: parsed.chat ?? null, forge: parsed.forge ?? null };
     } catch {
-      return { single: null, compare: null, forge: null };
+      return { chat: null, forge: null };
     }
   });
   const activeSessionId = sessionIds[activeView] ?? null;
@@ -38,7 +38,7 @@ export default function WorkspacePage() {
   const activeBrand = useBrandStore((state) => state.activeBrand);
   const kb = useBrandStore((state) => state.kb);
 
-  // Fetch sessions helper — returns ALL sessions for brand (single + compare + forge)
+  // Fetch all chat sessions for the active brand (unified list)
   const fetchSessions = () => {
     if (activeBrand?.id) {
       api.get(`/api/copy/sessions/${activeBrand.id}`).then((res) => {
@@ -49,12 +49,10 @@ export default function WorkspacePage() {
     }
   };
 
-  // Initial load + reload when brand changes
   useEffect(() => {
     fetchSessions();
   }, [activeBrand?.id]);
 
-  // Reload sessions when a new one is created via streaming
   useEffect(() => {
     const handler = () => fetchSessions();
     window.addEventListener('voice-session-created', handler);
@@ -76,17 +74,13 @@ export default function WorkspacePage() {
     setActiveView(view);
   };
 
-  // BUG FIX #1: When clicking a session from the sidebar, also switch to the
-  // correct tab that matches the session's mode (single/compare/forge).
+  // Clicking a session: forge sessions open in Forge, everything else
+  // (chat / legacy single / legacy compare) opens in the unified Chat view.
   const handleSelectSession = (session) => {
-    const mode = session.mode || 'single';
-    // Switch tab to match the session mode
-    if (mode !== activeView) {
-      setActiveView(mode);
-    }
-    // Set session ID for that mode
+    const view = session.mode === 'forge' ? 'forge' : 'chat';
+    if (view !== activeView) setActiveView(view);
     setSessionIds((prev) => {
-      const updated = { ...prev, [mode]: session.id };
+      const updated = { ...prev, [view]: session.id };
       localStorage.setItem('voice_session_ids', JSON.stringify(updated));
       return updated;
     });
@@ -102,17 +96,9 @@ export default function WorkspacePage() {
     }
 
     switch (activeView) {
-      case 'single':
+      case 'chat':
         return (
-          <SingleTab
-            brand={activeBrand}
-            activeSessionId={activeSessionId}
-            onSessionCreated={(id) => setActiveSessionId(id)}
-          />
-        );
-      case 'compare':
-        return (
-          <CompareTab
+          <ChatTab
             brand={activeBrand}
             activeSessionId={activeSessionId}
             onSessionCreated={(id) => setActiveSessionId(id)}
@@ -148,7 +134,6 @@ export default function WorkspacePage() {
           onNewChat={handleNewChat}
           sessions={sessions}
           activeSessionId={activeSessionId}
-          activeView={activeView}
           onSelectSession={handleSelectSession}
           onRefreshSessions={fetchSessions}
         />

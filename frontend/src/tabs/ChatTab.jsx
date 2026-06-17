@@ -126,7 +126,7 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated }) {
         turn_type: 'single',
         brief,
         created_at: new Date().toISOString(),
-        variants: [emptyVariant(model), emptyVariant(model), emptyVariant(model)],
+        variants: [emptyVariant(model)],
       };
       setTurns((prev) => [...prev, newTurn]);
 

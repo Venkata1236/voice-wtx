@@ -16,7 +16,7 @@ export default function VariantCard({ variant }) {
       style={{
         background: '#fff',
         border: '1px solid var(--sep)',
-        borderLeft: '3px solid var(--accent)',
+        borderLeft: '3px solid var(--label4)',
         borderRadius: 'var(--radius-lg)',
         overflow: 'hidden',
         marginTop: '10px',
@@ -80,7 +80,7 @@ export default function VariantCard({ variant }) {
               display: 'inline-block',
               width: '2px',
               height: '14px',
-              background: 'var(--accent)',
+              background: 'var(--label3)',
               marginLeft: '2px',
               animation: 'blink 1s step-end infinite',
               verticalAlign: 'text-bottom',
@@ -100,8 +100,8 @@ export default function VariantCard({ variant }) {
               style={{
                 padding: '3px 8px',
                 borderRadius: 'var(--radius-md)',
-                background: 'var(--accent-light)',
-                color: '#B8890A',
+                background: 'var(--surface2)',
+                color: 'var(--label2)',
                 fontSize: '11px',
                 fontWeight: 500,
                 cursor: 'pointer',

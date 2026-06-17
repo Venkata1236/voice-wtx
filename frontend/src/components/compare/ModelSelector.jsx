@@ -33,7 +33,7 @@ export default function ModelSelector({ value, onChange, openUp = false }) {
       >
         <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: current.color }} />
         <span style={{ fontSize: '13px', fontWeight: 500 }}>{current.label}</span>
-        <span style={{ fontSize: '11px', color: 'var(--label3)' }}>{current.provider}</span>
+        
         <span style={{ fontSize: '9px', color: 'var(--label3)', transform: open ? 'rotate(180deg)' : 'none' }}>▾</span>
       </div>
 
@@ -83,7 +83,7 @@ function ModelRow({ model, selected, onClick }) {
       <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: model.color, flexShrink: 0 }} />
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: '13px', fontWeight: 600 }}>{model.label}</div>
-        <div style={{ fontSize: '10px', color: 'var(--label3)' }}>{model.provider}</div>
+        
       </div>
     </div>
   );

@@ -184,7 +184,8 @@ async def generate_copy_stream(
         kb_context = await build_kb_context(payload.brand_id)
         system_prompt = format_kb_for_prompt(kb_context)
 
-        for variant_index in range(3):
+        # Single mode now returns ONE response (was 3)
+        for variant_index in range(1):
             yield f"data: {json.dumps({'type': 'variant_start', 'index': variant_index})}\n\n"
 
             full_content = ""
@@ -394,7 +395,8 @@ async def reject_variant(
     revised_turn_id = str(uuid.uuid4())
 
     new_variants = []
-    for result in results:
+    # Single mode returns one response — keep one revised variant
+    for result in results[:1]:
         new_variant_response = (
             supabase_admin.table("copy_variants")
             .insert({

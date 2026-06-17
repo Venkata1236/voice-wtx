@@ -15,6 +15,7 @@ from fastapi.responses import StreamingResponse
 from models.router import stream_from_model
 from kb.kb_builder import build_kb_context, format_kb_for_prompt
 from agents.langgraph.nodes.format_node import parse_copy_and_keywords
+from utils.titler import generate_session_title
 import json as json_lib
 import uuid
 
@@ -201,7 +202,8 @@ async def compare_generate_stream(
         session_exists = bool(check and check.data)
 
     # Create new session if none provided OR the provided one was deleted
-    if not session_exists:
+    created_new = not session_exists
+    if created_new:
         session_response = (
             supabase_admin.table("chat_sessions")
             .insert({
@@ -277,6 +279,17 @@ async def compare_generate_stream(
                 logger.error(f"Failed to save compare variant {pane_index}: {e}")
 
             yield f"data: {json_lib.dumps({'type': 'pane_done', 'index': pane_index, 'variant_id': variant_id, 'session_id': session_id, 'turn_id': turn_id, 'turn_type': 'compare', 'keywords': keywords, 'model': model, 'format': payload.format.value, 'brand_id': payload.brand_id, 'content': final_copy})}\n\n"
+
+        # Auto-name a brand-new chat with a concise title (ChatGPT-style).
+        if created_new:
+            try:
+                new_title = await generate_session_title(user_prompt)
+                supabase_admin.table("chat_sessions").update(
+                    {"title": new_title}
+                ).eq("id", session_id).execute()
+                yield f"data: {json_lib.dumps({'type': 'title', 'session_id': session_id, 'title': new_title})}\n\n"
+            except Exception as e:
+                logger.error(f"Failed to set session title: {e}")
 
         yield f"data: {json_lib.dumps({'type': 'done'})}\n\n"
 

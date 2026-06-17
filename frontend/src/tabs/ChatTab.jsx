@@ -145,6 +145,10 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated }) {
               setSessionId(id);
               onSessionCreated(id);
             },
+            onTitle: () => {
+              // Refresh the sidebar so the auto-generated title shows immediately
+              window.dispatchEvent(new CustomEvent('voice-session-created'));
+            },
             onToken: (index, text) =>
               updateTurnVariant(turnId, index, (v) => ({
                 ...v,
@@ -202,6 +206,10 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated }) {
             onSession: (id) => {
               setSessionId(id);
               onSessionCreated(id);
+            },
+            onTitle: () => {
+              // Refresh the sidebar so the auto-generated title shows immediately
+              window.dispatchEvent(new CustomEvent('voice-session-created'));
             },
             onToken: (index, text) =>
               updateTurnVariant(turnId, index, (v) => ({

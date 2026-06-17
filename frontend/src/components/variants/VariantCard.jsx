@@ -1,5 +1,12 @@
 import { useState } from 'react';
 
+const MODEL_LABELS = {
+  'claude-haiku-4-5': 'Haiku 4.5',
+  'sarvam-30b': 'Sarvam',
+  'gpt-4o-mini': 'GPT',
+  'gemini-1.5-flash': 'Gemini',
+};
+
 export default function VariantCard({ variant }) {
   const [copied, setCopied] = useState(false);
 
@@ -35,7 +42,7 @@ export default function VariantCard({ variant }) {
         }}
       >
         <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--label3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          {variant.model}
+          {MODEL_LABELS[variant.model] || variant.model}
         </span>
 
         {!isStreaming && (

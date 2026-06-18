@@ -6,6 +6,7 @@ import BriefBuilder from '../components/brief/BriefBuilder';
 import FormatChips from '../components/brief/FormatChips';
 import ModelSelector from '../components/compare/ModelSelector';
 import MicButton from '../components/common/MicButton';
+import ImageAttachButton from '../components/common/ImageAttachButton';
 import ChatTurn from '../components/chat/ChatTurn';
 
 export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode = 'single' }) {
@@ -23,6 +24,9 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // Image attachment — imageUrl is the Supabase URL, imagePreview is the local blob
+  const [imageUrl, setImageUrl] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
 
   const isStreamingRef = useRef(false);
   const scrollRef = useRef(null);
@@ -38,6 +42,8 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
 
       setTurns([]);
       setBriefText('');
+      setImageUrl(null);
+      setImagePreview(null);
 
       copyService.getThread(activeSessionId).then((data) => {
         setTurns(data?.turns || []);
@@ -50,6 +56,8 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
       setSessionId(null);
       setTurns([]);
       setBriefText('');
+      setImageUrl(null);
+      setImagePreview(null);
     }
   }, [activeSessionId]);
 
@@ -79,6 +87,16 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
     );
   };
 
+  const handleImageUploaded = (url, preview) => {
+    setImageUrl(url);
+    setImagePreview(preview);
+  };
+
+  const handleRemoveImage = () => {
+    setImageUrl(null);
+    setImagePreview(null);
+  };
+
   const handleBuildBrief = (fields) => {
     const lines = [`Format: ${format}`];
     if (fields.platform) lines.push(`Platform: ${fields.platform}`);
@@ -103,6 +121,8 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
     setError('');
     isStreamingRef.current = true;
     setBriefText('');
+    setImageUrl(null);
+    setImagePreview(null);
     shouldAutoScroll.current = true;
 
     const emptyVariant = (m) => ({
@@ -124,6 +144,8 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
         turn_type: 'single',
         brief,
         created_at: new Date().toISOString(),
+        image_url: imageUrl,
+        image_preview: imagePreview,
         variants: [emptyVariant(model)],
       };
       setTurns((prev) => [...prev, newTurn]);
@@ -137,6 +159,7 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
             raw_brief: brief,
             session_id: sessionId,
             turn_id: turnId,
+            image_url: imageUrl || undefined,
           },
           {
             onSession: (id) => {
@@ -185,6 +208,8 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
         turn_type: 'compare',
         brief,
         created_at: new Date().toISOString(),
+        image_url: imageUrl,
+        image_preview: imagePreview,
         variants: [emptyVariant(modelA), emptyVariant(modelB)],
       };
       setTurns((prev) => [...prev, newTurn]);
@@ -199,6 +224,7 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
             model_b: modelB,
             session_id: sessionId,
             turn_id: turnId,
+            image_url: imageUrl || undefined,
           },
           {
             onSession: (id) => {
@@ -321,6 +347,45 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
         )}
 
         {/* Input bar */}
+        {/* Image preview above input bar */}
+        {imagePreview && (
+          <div style={{ position: 'relative', display: 'inline-block', marginBottom: '6px' }}>
+            <img
+              src={imagePreview}
+              alt="Attached"
+              style={{
+                height: '72px',
+                width: 'auto',
+                borderRadius: '8px',
+                border: '1px solid var(--sep)',
+                objectFit: 'cover',
+              }}
+            />
+            <button
+              onClick={handleRemoveImage}
+              style={{
+                position: 'absolute',
+                top: '-6px',
+                right: '-6px',
+                width: '18px',
+                height: '18px',
+                borderRadius: '50%',
+                border: 'none',
+                background: '#1E1E2A',
+                color: '#fff',
+                fontSize: '10px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: 1,
+              }}
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         <div
           style={{
             display: 'flex',
@@ -390,6 +455,10 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <ImageAttachButton
+                onUploaded={handleImageUploaded}
+                disabled={loading}
+              />
               <MicButton
                 onTranscript={(text) =>
                   setBriefText((prev) => (prev ? prev + ' ' + text : text))

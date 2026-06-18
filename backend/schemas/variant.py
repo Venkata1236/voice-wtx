@@ -36,6 +36,9 @@ class VariantResponse(BaseModel):
     agent_critic: Optional[str] = None
     created_at: datetime
     keywords: Optional[list] = []
+    # ── Image attachment ──────────────────────────────────────────────
+    image_url: Optional[str] = None
+
     # ── Turn tracking — groups variants into conversation turns ────────
     turn_id: Optional[str] = None
     turn_type: Optional[str] = None  # 'single' | 'compare'
@@ -63,6 +66,7 @@ class ChatTurn(BaseModel):
     turn_type: str           # 'single' | 'compare'
     brief: str
     created_at: datetime
+    image_url: Optional[str] = None   # Supabase Storage URL of the attached image
     variants: list[VariantResponse]
 
 

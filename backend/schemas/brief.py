@@ -49,6 +49,11 @@ class BriefPayload(BaseModel):
     model: ModelType = ModelType.claude_haiku
     raw_brief: Optional[str] = None
     session_id: Optional[str] = None
+    # ── Image attachment ───────────────────────────────────────────
+    # Public Supabase Storage URL of the attached image (optional).
+    # If provided, the vision model extracts context from it first.
+    image_url: Optional[str] = None
+
     # ── Turn tracking ──────────────────────────────────────────────
     # Frontend generates one turn_id per send so all variants in that
     # send (single = 3, compare = 2) are grouped into one chat turn.

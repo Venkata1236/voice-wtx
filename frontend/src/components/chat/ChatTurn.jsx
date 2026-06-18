@@ -14,7 +14,7 @@ const prettyModel = (m) => MODEL_LABELS[m] || m;
 // layout that matches how it was generated:
 //   • single  → variant cards stacked
 //   • compare → two model panes side by side
-export default function ChatTurn({ turn, onApprove, onReject }) {
+export default function ChatTurn({ turn, onApprove, onReject, onRefine }) {
   const isCompare = turn.turn_type === 'compare';
 
   return (
@@ -71,7 +71,7 @@ export default function ChatTurn({ turn, onApprove, onReject }) {
               >
                 {prettyModel(v.model)}
               </div>
-              <VariantCard variant={v} onApprove={onApprove} onReject={onReject} />
+              <VariantCard variant={v} onApprove={onApprove} onReject={onReject} onRefine={onRefine} />
             </div>
           ))}
         </div>
@@ -83,6 +83,7 @@ export default function ChatTurn({ turn, onApprove, onReject }) {
               variant={v}
               onApprove={onApprove}
               onReject={onReject}
+              onRefine={onRefine}
             />
           ))}
         </div>

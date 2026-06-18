@@ -435,7 +435,11 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
               borderTop: '1px solid var(--sep2)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <ImageAttachButton
+                onUploaded={handleImageUploaded}
+                disabled={loading}
+              />
               <button
                 onClick={() => setShowBuilder(!showBuilder)}
                 style={{
@@ -455,10 +459,6 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <ImageAttachButton
-                onUploaded={handleImageUploaded}
-                disabled={loading}
-              />
               <MicButton
                 onTranscript={(text) =>
                   setBriefText((prev) => (prev ? prev + ' ' + text : text))

@@ -187,9 +187,18 @@ async def generate_copy_stream(
         system_prompt = format_kb_for_prompt(kb_context)
         system_prompt += "\n\n" + build_length_instruction(payload.format.value, user_prompt)
 
-        # ── Vision: if an image was attached, extract visual context ──
         effective_prompt = user_prompt
-        if getattr(payload, 'image_url', None):
+        # ── Refine: rewrite an existing response per the instruction ──
+        if getattr(payload, 'refine_from', None):
+            effective_prompt = (
+                f"EXISTING COPY:\n{payload.refine_from}\n\n"
+                f"REQUESTED CHANGE:\n{user_prompt}\n\n"
+                "Rewrite the existing copy applying the requested change. "
+                "Keep the same brand voice, format, and language style. "
+                "Return only the revised copy."
+            )
+        # ── Vision: if an image was attached, extract visual context ──
+        elif getattr(payload, 'image_url', None):
             visual_context = await extract_visual_context(payload.image_url)
             if visual_context:
                 effective_prompt = (

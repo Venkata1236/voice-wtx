@@ -17,6 +17,7 @@ from kb.kb_builder import build_kb_context, format_kb_for_prompt
 from agents.langgraph.nodes.format_node import parse_copy_and_keywords
 from utils.titler import generate_session_title
 from utils.length_guide import build_length_instruction
+from utils.vision import extract_visual_context
 import json as json_lib
 import uuid
 
@@ -224,6 +225,17 @@ async def compare_generate_stream(
         system_prompt = format_kb_for_prompt(kb_context)
         system_prompt += "\n\n" + build_length_instruction(payload.format.value, user_prompt)
 
+        # ── Vision: if an image was attached, extract visual context ──
+        effective_prompt = user_prompt
+        if getattr(payload, 'image_url', None):
+            visual_context = await extract_visual_context(payload.image_url)
+            if visual_context:
+                effective_prompt = (
+                    f"VISUAL CONTEXT (extracted from attached image):\n{visual_context}\n\n"
+                    f"BRIEF:\n{user_prompt}"
+                )
+                yield f"data: {json_lib.dumps({'type': 'vision_done', 'context': visual_context})}\n\n"
+
         for pane_index, model in enumerate([payload.model_a.value, payload.model_b.value]):
             yield f"data: {json_lib.dumps({'type': 'pane_start', 'index': pane_index, 'model': model})}\n\n"
 
@@ -233,7 +245,7 @@ async def compare_generate_stream(
                 async for chunk in stream_from_model(
                     model=model,
                     system_prompt=system_prompt,
-                    user_prompt=user_prompt,
+                    user_prompt=effective_prompt,
                 ):
                     full_content += chunk
                     if 'KEYWORDS:' not in full_content:
@@ -273,6 +285,7 @@ async def compare_generate_stream(
                         "keywords": json_lib.dumps(keywords),
                         "turn_id": turn_id,
                         "turn_type": "compare",
+                        "image_url": getattr(payload, "image_url", None),
                     })
                     .execute()
                 )

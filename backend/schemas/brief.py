@@ -49,6 +49,11 @@ class BriefPayload(BaseModel):
     model: ModelType = ModelType.claude_haiku
     raw_brief: Optional[str] = None
     session_id: Optional[str] = None
+    # ── Refinement ─────────────────────────────────────────────────
+    # When set, the model rewrites this existing copy per the instruction
+    # in raw_brief, instead of generating fresh. Uses the same model.
+    refine_from: Optional[str] = None
+
     # ── Image attachment ───────────────────────────────────────────
     # Public Supabase Storage URL of the attached image (optional).
     # If provided, the vision model extracts context from it first.

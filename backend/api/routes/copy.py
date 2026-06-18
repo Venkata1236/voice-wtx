@@ -13,6 +13,7 @@ from models.router import stream_from_model
 from kb.kb_builder import build_kb_context, format_kb_for_prompt
 from utils.titler import generate_session_title
 from utils.length_guide import build_length_instruction
+from utils.vision import extract_visual_context
 import json
 import uuid
 
@@ -186,6 +187,17 @@ async def generate_copy_stream(
         system_prompt = format_kb_for_prompt(kb_context)
         system_prompt += "\n\n" + build_length_instruction(payload.format.value, user_prompt)
 
+        # ── Vision: if an image was attached, extract visual context ──
+        effective_prompt = user_prompt
+        if getattr(payload, 'image_url', None):
+            visual_context = await extract_visual_context(payload.image_url)
+            if visual_context:
+                effective_prompt = (
+                    f"VISUAL CONTEXT (extracted from attached image):\n{visual_context}\n\n"
+                    f"BRIEF:\n{user_prompt}"
+                )
+                yield f"data: {json.dumps({'type': 'vision_done', 'context': visual_context})}\n\n"
+
         # Single mode now returns ONE response (was 3)
         for variant_index in range(1):
             yield f"data: {json.dumps({'type': 'variant_start', 'index': variant_index})}\n\n"
@@ -195,7 +207,7 @@ async def generate_copy_stream(
             async for chunk in stream_from_model(
                 model=payload.model.value,
                 system_prompt=system_prompt,
-                user_prompt=user_prompt,
+                user_prompt=effective_prompt,
             ):
                 full_content += chunk
                 if 'KEYWORDS:' not in full_content:
@@ -232,6 +244,7 @@ async def generate_copy_stream(
                         "keywords": json.dumps(keywords),
                         "turn_id": turn_id,
                         "turn_type": "single",
+                        "image_url": getattr(payload, "image_url", None),
                     })
                     .execute()
                 )
@@ -460,6 +473,7 @@ async def get_chat_thread(
                 "turn_type": ttype,
                 "brief": v.brief,
                 "created_at": v.created_at,
+                "image_url": v.image_url,   # from first variant in this turn
                 "variants": [],
             }
             order.append(tid)

@@ -3,7 +3,7 @@ import VariantCard from '../variants/VariantCard';
 // ── Pretty model labels ────────────────────────────────────────────
 const MODEL_LABELS = {
   'claude-haiku-4-5': 'Haiku 4.5',
-  'sarvam   ': 'Sarvam',
+  'sarvam-30b': 'Sarvam',
   'gpt-4o-mini': 'GPT',
   'gemini-1.5-flash': 'Gemini',
 };
@@ -19,23 +19,39 @@ export default function ChatTurn({ turn, onApprove, onReject }) {
 
   return (
     <div style={{ marginBottom: '28px' }}>
-      {/* User message */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
-        <div
-          style={{
-            maxWidth: '80%',
-            background: 'var(--surface2)',
-            color: 'var(--label)',
-            padding: '10px 14px',
-            borderRadius: '14px 14px 4px 14px',
-            fontSize: '13.5px',
-            lineHeight: 1.6,
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-          }}
-        >
-          {turn.brief}
-        </div>
+      {/* User message — image (if any) + brief text */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+        {/* Image — show preview blob during streaming, or stored URL on reload */}
+        {(turn.image_preview || turn.image_url) && (
+          <img
+            src={turn.image_preview || turn.image_url}
+            alt="Attached"
+            style={{
+              maxWidth: '260px',
+              maxHeight: '180px',
+              borderRadius: '12px',
+              objectFit: 'cover',
+              border: '1px solid var(--sep)',
+            }}
+          />
+        )}
+        {turn.brief && (
+          <div
+            style={{
+              maxWidth: '80%',
+              background: 'var(--surface2)',
+              color: 'var(--label)',
+              padding: '10px 14px',
+              borderRadius: '14px 14px 4px 14px',
+              fontSize: '13.5px',
+              lineHeight: 1.6,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+            }}
+          >
+            {turn.brief}
+          </div>
+        )}
       </div>
 
       {/* AI response */}

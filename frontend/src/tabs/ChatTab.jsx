@@ -27,6 +27,8 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
   // Image attachment — imageUrl is the Supabase URL, imagePreview is the local blob
   const [imageUrl, setImageUrl] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+  // Refine — when set, the next send rewrites this variant with the same model
+  const [refineTarget, setRefineTarget] = useState(null);
 
   const isStreamingRef = useRef(false);
   const scrollRef = useRef(null);
@@ -44,6 +46,7 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
       setBriefText('');
       setImageUrl(null);
       setImagePreview(null);
+      setRefineTarget(null);
 
       copyService.getThread(activeSessionId).then((data) => {
         setTurns(data?.turns || []);
@@ -58,6 +61,7 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
       setBriefText('');
       setImageUrl(null);
       setImagePreview(null);
+      setRefineTarget(null);
     }
   }, [activeSessionId]);
 
@@ -86,6 +90,12 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
       })
     );
   };
+
+  const handleRefine = (variant) => {
+    setRefineTarget(variant);
+  };
+
+  const cancelRefine = () => setRefineTarget(null);
 
   const handleImageUploaded = (url, preview) => {
     setImageUrl(url);
@@ -116,6 +126,7 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
 
     const brief = briefText.trim();
     const turnId = newTurnId();
+    const refining = refineTarget; // capture before clearing
 
     setLoading(true);
     setError('');
@@ -123,6 +134,7 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
     setBriefText('');
     setImageUrl(null);
     setImagePreview(null);
+    setRefineTarget(null);
     shouldAutoScroll.current = true;
 
     const emptyVariant = (m) => ({
@@ -136,6 +148,72 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
       brand_id: brand.id,
       streaming: true,
     });
+
+    // ── Refine path — rewrite the chosen response with the same model ──
+    if (refining) {
+      const refineModel = refining.model;
+      const refineFormat = refining.format || format;
+      const newTurn = {
+        turn_id: turnId,
+        turn_type: 'single',
+        brief,
+        created_at: new Date().toISOString(),
+        variants: [{ ...emptyVariant(refineModel), format: refineFormat }],
+      };
+      setTurns((prev) => [...prev, newTurn]);
+
+      try {
+        await copyService.generateStream(
+          {
+            brand_id: brand.id,
+            format: refineFormat,
+            model: refineModel,
+            raw_brief: brief,
+            refine_from: refining.content,
+            session_id: sessionId,
+            turn_id: turnId,
+          },
+          {
+            onSession: (id) => {
+              setSessionId(id);
+              onSessionCreated(id);
+            },
+            onTitle: () => {
+              window.dispatchEvent(new CustomEvent('voice-session-created'));
+            },
+            onToken: (index, text) =>
+              updateTurnVariant(turnId, index, (v) => ({
+                ...v,
+                content: (v.content || '') + text,
+              })),
+            onVariantDone: (data) =>
+              updateTurnVariant(turnId, data.index, (v) => ({
+                ...v,
+                id: data.variant_id,
+                content: data.content || v.content || '',
+                keywords: data.keywords || [],
+                model: data.model,
+                format: data.format,
+                brand_id: data.brand_id,
+                session_id: data.session_id,
+                turn_id: data.turn_id,
+                turn_type: 'single',
+                streaming: false,
+              })),
+            onDone: () => {
+              setLoading(false);
+              isStreamingRef.current = false;
+              window.dispatchEvent(new CustomEvent('voice-session-created'));
+            },
+          }
+        );
+      } catch {
+        setError('Refine failed. Please try again.');
+        setLoading(false);
+        isStreamingRef.current = false;
+      }
+      return;
+    }
 
     if (mode === 'single') {
       // Optimistic single turn — 3 empty cards
@@ -312,6 +390,7 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
             turn={turn}
             onApprove={handleApprove}
             onReject={handleReject}
+            onRefine={handleRefine}
           />
         ))}
       </div>
@@ -347,6 +426,52 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
         )}
 
         {/* Input bar */}
+        {/* Refine banner */}
+        {refineTarget && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 12px',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--surface)',
+              border: '1px solid var(--sep)',
+              fontSize: '12px',
+              color: 'var(--label2)',
+            }}
+          >
+            <span style={{ flexShrink: 0, fontWeight: 600 }}>Refining</span>
+            <span
+              style={{
+                flex: 1,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                color: 'var(--label3)',
+              }}
+            >
+              "{(refineTarget.content || '').slice(0, 60)}{(refineTarget.content || '').length > 60 ? '\u2026' : ''}"
+            </span>
+            <button
+              onClick={cancelRefine}
+              title="Cancel refine"
+              style={{
+                border: 'none',
+                background: 'transparent',
+                cursor: 'pointer',
+                color: 'var(--label3)',
+                fontSize: '16px',
+                lineHeight: 1,
+                padding: '0 2px',
+                flexShrink: 0,
+              }}
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         {/* Image preview above input bar */}
         {imagePreview && (
           <div style={{ position: 'relative', display: 'inline-block', marginBottom: '6px' }}>
@@ -401,7 +526,9 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
             value={briefText}
             onChange={(e) => setBriefText(e.target.value)}
             placeholder={
-              mode === 'single'
+              refineTarget
+                ? 'Describe the change (e.g. make it funnier, shorter, more Tenglish)'
+                : mode === 'single'
                 ? 'Describe your brief... (Single → 1 response)'
                 : 'Write one brief — sent to both models (Compare)...'
             }

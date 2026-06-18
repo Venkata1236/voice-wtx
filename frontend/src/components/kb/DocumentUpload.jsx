@@ -1,6 +1,25 @@
 import { useRef } from 'react';
 import { kbService } from '../../services/kbService';
 
+// ── Friendly "time ago" formatter ──────────────────────────────────
+function timeAgo(iso) {
+  if (!iso) return '';
+  const then = new Date(iso);
+  if (isNaN(then.getTime())) return '';
+  const secs = Math.floor((Date.now() - then.getTime()) / 1000);
+
+  if (secs < 60) return 'just now';
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs} hr ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days} day${days > 1 ? 's' : ''} ago`;
+
+  // Older than a week → show the date
+  return then.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 export default function DocumentUpload({ brandId, docType, label, document, onUploaded }) {
   const fileInputRef = useRef(null);
 
@@ -21,6 +40,9 @@ export default function DocumentUpload({ brandId, docType, label, document, onUp
     approved: 'var(--green)',
     rejected: 'var(--red)',
   };
+
+  // Prefer updated_at (reflects re-uploads); fall back to created_at
+  const stamp = document?.updated_at || document?.created_at;
 
   return (
     <div
@@ -49,6 +71,11 @@ export default function DocumentUpload({ brandId, docType, label, document, onUp
       {document ? (
         <div style={{ fontSize: '12px', color: 'var(--label2)' }}>
           {document.file_name} · {document.word_count} words
+          {stamp && (
+            <div style={{ fontSize: '11px', color: 'var(--label3)', marginTop: '2px' }}>
+              Updated {timeAgo(stamp)}
+            </div>
+          )}
         </div>
       ) : (
         <div style={{ fontSize: '12px', color: 'var(--label3)' }}>No document uploaded</div>

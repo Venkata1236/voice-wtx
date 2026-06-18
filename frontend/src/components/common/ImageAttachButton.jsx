@@ -2,9 +2,8 @@ import { useRef, useState } from 'react';
 import { imageService } from '../../services/imageService';
 
 /**
- * Paperclip/image attach button.
+ * "+" attach button, ChatGPT/Claude style.
  * On file pick → uploads to Supabase Storage → calls onUploaded(url, previewDataUrl).
- * Shows a spinner while uploading.
  */
 export default function ImageAttachButton({ onUploaded, disabled }) {
   const inputRef = useRef(null);
@@ -15,8 +14,7 @@ export default function ImageAttachButton({ onUploaded, disabled }) {
     if (!file) return;
     e.target.value = '';          // reset so re-picking same file triggers onChange
 
-    // Local preview URL for instant thumbnail
-    const previewUrl = URL.createObjectURL(file);
+    const previewUrl = URL.createObjectURL(file); // instant local thumbnail
 
     setUploading(true);
     try {
@@ -42,24 +40,30 @@ export default function ImageAttachButton({ onUploaded, disabled }) {
       <button
         onClick={() => inputRef.current?.click()}
         disabled={disabled || uploading}
-        title="Attach image — Gemini vision will read it"
+        title="Attach image"
         style={{
-          width: '32px',
-          height: '32px',
-          borderRadius: '8px',
+          width: '30px',
+          height: '30px',
+          borderRadius: '50%',
           border: '1px solid var(--sep)',
           background: 'transparent',
-          color: uploading ? 'var(--accent)' : 'var(--label3)',
+          color: 'var(--label2)',
           cursor: disabled || uploading ? 'default' : 'pointer',
+          opacity: uploading ? 0.5 : 1,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '16px',
+          fontSize: '18px',
+          fontWeight: 400,
+          lineHeight: 1,
           flexShrink: 0,
+          padding: 0,
           transition: 'all .15s',
         }}
+        onMouseEnter={(e) => { if (!uploading) e.currentTarget.style.background = 'var(--surface)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
       >
-        {uploading ? '⏳' : '📎'}
+        +
       </button>
     </>
   );

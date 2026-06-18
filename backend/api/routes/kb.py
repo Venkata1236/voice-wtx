@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, status
 from loguru import logger
 import tempfile
 import os
+from datetime import datetime, timezone
 
 from db.supabase_client import get_supabase, get_supabase_admin
 from schemas.kb import KBResponse, KBUpdate, KBDocumentResponse, DocType
@@ -179,6 +180,7 @@ async def upload_document(
                     "status": "pending",
                     "uploaded_by": current_user["id"],
                     "approved_by": None,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
                 })
                 .eq("id", existing.data[0]["id"])
                 .execute()

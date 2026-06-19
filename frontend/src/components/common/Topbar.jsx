@@ -1,10 +1,9 @@
 export default function Topbar({ activeView, setActiveView, mode, setMode, onOpenKB, onOpenSettings, forgeEnabled }) {
-  // One combined control: Single · Compare · Chat · Insights
-  // Single/Compare set the chat mode; Chat/Insights switch the view.
+  // One combined control: Single · Compare · Notes
+  // Single/Compare set the chat mode (and show the chat); Notes switches the view.
   const tabs = [
     { key: 'single', label: 'Single' },
     { key: 'compare', label: 'Compare' },
-    { key: 'chat', label: 'Chat' },
     { key: 'insights', label: 'Notes' },
     ...(forgeEnabled ? [{ key: 'forge', label: '⚡ Forge' }] : []),
   ];
@@ -42,7 +41,7 @@ export default function Topbar({ activeView, setActiveView, mode, setMode, onOpe
         <span style={{ fontWeight: 600, color: 'var(--accent)' }}>Voice</span>
       </div>
 
-      {/* Single · Compare · Chat · Insights — one control */}
+      {/* Single · Compare · Notes — one control */}
       <div
         style={{
           display: 'flex',

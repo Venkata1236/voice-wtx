@@ -57,7 +57,7 @@ export default function VariantCard({ variant, onRefine }) {
                 background: 'var(--surface2)',
               }}
             >
-              {variant.score}% on-brand
+              {variant.score}%
             </span>
           )}
         </div>

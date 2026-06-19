@@ -2,15 +2,32 @@ from loguru import logger
 from db.supabase_client import get_supabase
 
 
-async def build_kb_context(brand_id: str) -> dict:
-    """
-    Assembles the complete Knowledge Base context for a brand.
-    Called before every single generation, compare, and forge request.
-    Returns a structured dict that gets injected into the AI prompt.
-    """
+# ── KB static cache ────────────────────────────────────────────────
+# Brand documents, personas, tone tags, and rules change rarely, so we
+# cache the heavy static part of the KB per brand in memory and reuse it
+# instead of re-reading it from the DB on every generation.
+# The dynamic learning signals (approved posts, recent rejections) are
+# always fetched fresh so they stay current.
+# Cache is invalidated on document upload/approve/reject and KB updates.
+_kb_static_cache: dict = {}
+
+
+def invalidate_kb_cache(brand_id: str) -> None:
+    """Drop a brand's cached static KB. Call after any KB/document change."""
+    if brand_id in _kb_static_cache:
+        del _kb_static_cache[brand_id]
+        logger.info(f"KB cache invalidated for brand: {brand_id}")
+
+
+async def _build_static_kb(brand_id: str) -> dict:
+    """Builds the static (rarely-changing) part of the KB and caches it."""
+    if brand_id in _kb_static_cache:
+        logger.info(f"KB static cache HIT for brand: {brand_id}")
+        return _kb_static_cache[brand_id]
+
+    logger.info(f"KB static cache MISS for brand: {brand_id} — building")
     supabase = get_supabase()
 
-    # ── Fetch KB settings ─────────────────────────────────────────
     kb_response = (
         supabase.table("brand_kb")
         .select("*")
@@ -21,11 +38,12 @@ async def build_kb_context(brand_id: str) -> dict:
 
     if not kb_response or not kb_response.data:
         logger.warning(f"No KB found for brand: {brand_id}")
-        return _empty_kb(brand_id)
+        static = _empty_kb(brand_id)
+        # Don't cache an empty/missing KB — it may appear once set up
+        return static
 
     kb = kb_response.data
 
-    # ── Fetch approved brand document ─────────────────────────────
     brand_doc = (
         supabase.table("kb_documents")
         .select("extracted_text, file_name, word_count")
@@ -36,7 +54,6 @@ async def build_kb_context(brand_id: str) -> dict:
         .execute()
     )
 
-    # ── Fetch approved audience personas document ─────────────────
     personas_doc = (
         supabase.table("kb_documents")
         .select("extracted_text, file_name, word_count")
@@ -47,8 +64,57 @@ async def build_kb_context(brand_id: str) -> dict:
         .execute()
     )
 
-    # ── Fetch last 30 approved posts ──────────────────────────────
-    # These are real approved copy examples the AI learns from
+    brand_response = (
+        supabase.table("brands")
+        .select("name, category")
+        .eq("id", brand_id)
+        .maybe_single()
+        .execute()
+    )
+    brand_name = brand_response.data.get("name", "Unknown Brand") if brand_response and brand_response.data else "Unknown Brand"
+    brand_category = brand_response.data.get("category", "") if brand_response and brand_response.data else ""
+
+    static = {
+        "brand_id": brand_id,
+        "brand_name": brand_name,
+        "brand_category": brand_category,
+        "tone_tags": kb.get("tone_tags", []),
+        "rules_do": kb.get("brand_rules_do", []),
+        "rules_dont": kb.get("brand_rules_dont", []),
+        "brief_template": kb.get("brief_template", {}),
+        "brand_document": (
+            brand_doc.data.get("extracted_text", "")
+            if brand_doc and brand_doc.data else ""
+        ),
+        "audience_personas": (
+            personas_doc.data.get("extracted_text", "")
+            if personas_doc and personas_doc.data else ""
+        ),
+    }
+
+    _kb_static_cache[brand_id] = static
+    logger.info(
+        f"KB static cached for brand: {brand_name} | "
+        f"Brand doc: {'yes' if static['brand_document'] else 'no'}"
+    )
+    return static
+
+
+async def build_kb_context(brand_id: str) -> dict:
+    """
+    Assembles the complete Knowledge Base context for a brand.
+    Called before every single generation, compare, and forge request.
+
+    The static part (brand document, personas, tone, rules, brief template)
+    is cached per brand and reused. The dynamic learning signals (approved
+    posts, recent rejections) are always fetched fresh so they stay current.
+    """
+    supabase = get_supabase()
+
+    # ── Static part — cached, rarely changes ──────────────────────
+    static = await _build_static_kb(brand_id)
+
+    # ── Dynamic part — always fresh ───────────────────────────────
     approved_posts = (
         supabase.table("approved_posts")
         .select("content, format, model")
@@ -58,8 +124,6 @@ async def build_kb_context(brand_id: str) -> dict:
         .execute()
     )
 
-    # ── Fetch last 5 rejected copy reasons ────────────────────────
-    # AI uses these to avoid repeating same mistakes
     recent_rejections = (
         supabase.table("copy_variants")
         .select("content, rejection_reason, format")
@@ -71,58 +135,18 @@ async def build_kb_context(brand_id: str) -> dict:
         .execute()
     )
 
-    # ── Fetch brand name ──────────────────────────────────────────
-    brand_response = (
-        supabase.table("brands")
-        .select("name, category")
-        .eq("id", brand_id)
-        .maybe_single()
-        .execute()
-    )
-
-    brand_name = brand_response.data.get("name", "Unknown Brand") if brand_response and brand_response.data else "Unknown Brand"
-    brand_category = brand_response.data.get("category", "") if brand_response and brand_response.data else ""
-
-    # ── Assemble full KB context dict ─────────────────────────────
+    # ── Merge static + dynamic ────────────────────────────────────
     context = {
-        "brand_id": brand_id,
-        "brand_name": brand_name,
-        "brand_category": brand_category,
-
-        # Tone tags — only active ones
-        "tone_tags": kb.get("tone_tags", []),
-
-        # Brand rules
-        "rules_do": kb.get("brand_rules_do", []),
-        "rules_dont": kb.get("brand_rules_dont", []),
-
-        # Monthly campaign focus set by Strategist
-        "brief_template": kb.get("brief_template", {}),
-
-        # Uploaded brand guidelines document
-        "brand_document": (
-            brand_doc.data.get("extracted_text", "")
-            if brand_doc and brand_doc.data else ""
-        ),
-
-        # Uploaded audience personas document
-        "audience_personas": (
-            personas_doc.data.get("extracted_text", "")
-            if personas_doc and personas_doc.data else ""
-        ),
-
-        # Last 30 approved copy examples — AI learns from these
+        **static,
         "approved_posts": approved_posts.data or [],
-
-        # Last 5 rejection reasons — AI avoids repeating these
         "recent_rejections": recent_rejections.data or [],
     }
 
     logger.info(
-        f"KB context built for brand: {brand_name} | "
-        f"Tone tags: {len(context['tone_tags'])} | "
+        f"KB context built for brand: {context.get('brand_name')} | "
+        f"Tone tags: {len(context.get('tone_tags', []))} | "
         f"Approved posts: {len(context['approved_posts'])} | "
-        f"Brand doc: {'yes' if context['brand_document'] else 'no'}"
+        f"Brand doc: {'yes' if context.get('brand_document') else 'no'}"
     )
 
     return context

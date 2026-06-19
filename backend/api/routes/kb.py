@@ -9,7 +9,7 @@ from schemas.kb import KBResponse, KBUpdate, KBDocumentResponse, DocType
 from api.middleware.auth_guard import get_current_user
 from api.middleware.role_guard import require_admin_or_copy_lead, require_any
 from kb.parser import extract_text_from_file
-from kb.kb_builder import build_kb_context
+from kb.kb_builder import build_kb_context, invalidate_kb_cache
 
 router = APIRouter(prefix="/api/kb", tags=["Knowledge Base"])
 
@@ -111,6 +111,7 @@ async def update_kb(
             detail="Knowledge Base not found for this brand",
         )
 
+    invalidate_kb_cache(brand_id)
     logger.info(f"KB updated for brand: {brand_id} by {current_user['email']}")
 
     return {"message": "Knowledge Base updated successfully"}
@@ -201,6 +202,7 @@ async def upload_document(
                 .execute()
             )
 
+        invalidate_kb_cache(brand_id)
         logger.info(
             f"Document uploaded: {file.filename} | Brand: {brand_id} | "
             f"Words: {word_count} | By: {current_user['email']}"
@@ -244,6 +246,7 @@ async def approve_document(
             detail="Document not found",
         )
 
+    invalidate_kb_cache(brand_id)
     logger.info(
         f"Document approved: {doc_id} | Brand: {brand_id} | "
         f"By: {current_user['email']}"
@@ -278,6 +281,7 @@ async def reject_document(
             detail="Document not found",
         )
 
+    invalidate_kb_cache(brand_id)
     logger.info(f"Document rejected: {doc_id} by {current_user['email']}")
 
     return {"message": "Document rejected"}

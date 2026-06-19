@@ -18,6 +18,7 @@ from agents.langgraph.nodes.format_node import parse_copy_and_keywords
 from utils.titler import generate_session_title
 from utils.length_guide import build_length_instruction
 from utils.vision import extract_visual_context
+from utils.scorer import score_brand_relevance
 import json as json_lib
 import uuid
 
@@ -260,6 +261,7 @@ async def compare_generate_stream(
                 logger.error(f"Streaming error for pane {pane_index} model {model}: {e}")
 
             final_copy, keywords = parse_copy_and_keywords(full_content)
+            relevance = await score_brand_relevance(final_copy, kb_context)
 
             logger.info(
                 f"Compare stream pane {pane_index} | "
@@ -280,7 +282,7 @@ async def compare_generate_stream(
                         "format": payload.format.value,
                         "brief": user_prompt,
                         "content": final_copy,
-                        "score": 70,
+                        "score": relevance,
                         "status": "pending",
                         "keywords": json_lib.dumps(keywords),
                         "turn_id": turn_id,
@@ -293,7 +295,7 @@ async def compare_generate_stream(
             except Exception as e:
                 logger.error(f"Failed to save compare variant {pane_index}: {e}")
 
-            yield f"data: {json_lib.dumps({'type': 'pane_done', 'index': pane_index, 'variant_id': variant_id, 'session_id': session_id, 'turn_id': turn_id, 'turn_type': 'compare', 'keywords': keywords, 'model': model, 'format': payload.format.value, 'brand_id': payload.brand_id, 'content': final_copy})}\n\n"
+            yield f"data: {json_lib.dumps({'type': 'pane_done', 'index': pane_index, 'variant_id': variant_id, 'session_id': session_id, 'turn_id': turn_id, 'turn_type': 'compare', 'keywords': keywords, 'model': model, 'format': payload.format.value, 'brand_id': payload.brand_id, 'content': final_copy, 'score': relevance})}\n\n"
 
         # Auto-name a brand-new chat with a concise title (ChatGPT-style).
         if created_new:

@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 const MODEL_LABELS = {
   'claude-haiku-4-5': 'Haiku 4.5',
-  'sarvam': 'Sarvam',
+  'sarvam-30b': 'Sarvam',
   'gpt-4o-mini': 'GPT',
   'gemini-1.5-flash': 'Gemini',
 };
@@ -23,7 +23,7 @@ export default function VariantCard({ variant, onRefine }) {
       style={{
         background: '#fff',
         border: '1px solid var(--sep)',
-        borderLeft: '3px solid var(--label4)',
+        borderLeft: '3px solid var(--accent)',
         borderRadius: 'var(--radius-lg)',
         overflow: 'hidden',
         marginTop: '10px',
@@ -41,9 +41,32 @@ export default function VariantCard({ variant, onRefine }) {
           background: 'var(--surface)',
         }}
       >
-        <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--label3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          {MODEL_LABELS[variant.model] || variant.model}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--label3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            {MODEL_LABELS[variant.model] || variant.model}
+          </span>
+          {!isStreaming && variant.score > 0 && (
+            <span
+              title="How on-brand this copy is, vs the brand document"
+              style={{
+                fontSize: '10px',
+                fontWeight: 700,
+                padding: '2px 7px',
+                borderRadius: '999px',
+                color:
+                  variant.score >= 80 ? 'var(--green)'
+                    : variant.score >= 60 ? 'var(--orange)'
+                    : 'var(--red)',
+                background:
+                  variant.score >= 80 ? 'rgba(34,197,94,.12)'
+                    : variant.score >= 60 ? 'rgba(245,158,11,.12)'
+                    : 'rgba(239,68,68,.12)',
+              }}
+            >
+              {variant.score}% on-brand
+            </span>
+          )}
+        </div>
 
         {!isStreaming && (
           <button
@@ -87,7 +110,7 @@ export default function VariantCard({ variant, onRefine }) {
               display: 'inline-block',
               width: '2px',
               height: '14px',
-              background: 'var(--label3)',
+              background: 'var(--accent)',
               marginLeft: '2px',
               animation: 'blink 1s step-end infinite',
               verticalAlign: 'text-bottom',
@@ -107,8 +130,8 @@ export default function VariantCard({ variant, onRefine }) {
               style={{
                 padding: '3px 8px',
                 borderRadius: 'var(--radius-md)',
-                background: 'var(--surface2)',
-                color: 'var(--label2)',
+                background: 'var(--accent-light)',
+                color: '#B8890A',
                 fontSize: '11px',
                 fontWeight: 500,
                 cursor: 'pointer',

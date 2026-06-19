@@ -15,6 +15,13 @@ export default function KBPanel({ brand, kb: initialKb, onClose }) {
     setKb(updated);
   };
 
+  // Fetch the latest KB (including document approval status) whenever the
+  // panel opens, so an approval done elsewhere shows without a full refresh.
+  useEffect(() => {
+    refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   if (!kb) {
     return (
       <div style={panelStyle}>

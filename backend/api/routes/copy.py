@@ -191,11 +191,14 @@ async def generate_copy_stream(
         # ── Refine: rewrite an existing response per the instruction ──
         if getattr(payload, 'refine_from', None):
             effective_prompt = (
+                "You are refining a piece of existing marketing copy.\n\n"
                 f"EXISTING COPY:\n{payload.refine_from}\n\n"
                 f"REQUESTED CHANGE:\n{user_prompt}\n\n"
-                "Rewrite the existing copy applying the requested change. "
-                "Keep the same brand voice, format, and language style. "
-                "Return only the revised copy."
+                "Apply the requested change fully \u2014 the result MUST clearly reflect it. "
+                "Keep the brand voice and the core message/offer, but follow the requested "
+                "change even when it alters the tone, length, or language (e.g. 'make it Tenglish' "
+                "means rewrite it in a Hindi/Telugu-English mix). "
+                "Do NOT return the original copy unchanged. Return only the revised copy."
             )
         # ── Vision: if an image was attached, extract visual context ──
         elif getattr(payload, 'image_url', None):

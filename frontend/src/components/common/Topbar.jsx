@@ -5,7 +5,7 @@ export default function Topbar({ activeView, setActiveView, mode, setMode, onOpe
     { key: 'single', label: 'Single' },
     { key: 'compare', label: 'Compare' },
     { key: 'chat', label: 'Chat' },
-    { key: 'insights', label: 'Insights' },
+    { key: 'insights', label: 'Notes' },
     ...(forgeEnabled ? [{ key: 'forge', label: '⚡ Forge' }] : []),
   ];
 

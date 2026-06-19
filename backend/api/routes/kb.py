@@ -91,6 +91,9 @@ async def update_kb(
 
     # Build update dict — only include fields that were actually sent
     update_data = payload.model_dump(exclude_none=True)
+    # Bump version stamp so all workers pick up the change
+    if update_data:
+        update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
     if not update_data:
         raise HTTPException(
@@ -202,6 +205,9 @@ async def upload_document(
                 .execute()
             )
 
+        supabase_admin.table("brand_kb").update(
+            {"updated_at": datetime.now(timezone.utc).isoformat()}
+        ).eq("brand_id", brand_id).execute()
         invalidate_kb_cache(brand_id)
         logger.info(
             f"Document uploaded: {file.filename} | Brand: {brand_id} | "
@@ -246,6 +252,9 @@ async def approve_document(
             detail="Document not found",
         )
 
+    supabase_admin.table("brand_kb").update(
+        {"updated_at": datetime.now(timezone.utc).isoformat()}
+    ).eq("brand_id", brand_id).execute()
     invalidate_kb_cache(brand_id)
     logger.info(
         f"Document approved: {doc_id} | Brand: {brand_id} | "
@@ -281,6 +290,9 @@ async def reject_document(
             detail="Document not found",
         )
 
+    supabase_admin.table("brand_kb").update(
+        {"updated_at": datetime.now(timezone.utc).isoformat()}
+    ).eq("brand_id", brand_id).execute()
     invalidate_kb_cache(brand_id)
     logger.info(f"Document rejected: {doc_id} by {current_user['email']}")
 

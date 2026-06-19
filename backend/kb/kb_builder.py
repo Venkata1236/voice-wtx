@@ -2,30 +2,49 @@ from loguru import logger
 from db.supabase_client import get_supabase
 
 
-# ── KB static cache ────────────────────────────────────────────────
-# Brand documents, personas, tone tags, and rules change rarely, so we
-# cache the heavy static part of the KB per brand in memory and reuse it
-# instead of re-reading it from the DB on every generation.
-# The dynamic learning signals (approved posts, recent rejections) are
-# always fetched fresh so they stay current.
-# Cache is invalidated on document upload/approve/reject and KB updates.
+# ── KB static cache (version-aware, multi-worker safe) ─────────────
+# The heavy static part of the KB (brand document, personas, tone, rules)
+# is cached per brand. Each request fetches a tiny version stamp
+# (brand_kb.updated_at); if it matches the cached version we reuse the
+# cache, otherwise we rebuild. Every KB change bumps that stamp, so a new
+# brand-document upload overrides the old one for ALL workers on their next
+# request — no Redis needed, and no stale content.
+# Cache value shape: { brand_id: (version_stamp, static_dict) }
 _kb_static_cache: dict = {}
 
 
 def invalidate_kb_cache(brand_id: str) -> None:
-    """Drop a brand's cached static KB. Call after any KB/document change."""
+    """Drop a brand's cached static KB locally (instant clear in this worker)."""
     if brand_id in _kb_static_cache:
         del _kb_static_cache[brand_id]
         logger.info(f"KB cache invalidated for brand: {brand_id}")
 
 
-async def _build_static_kb(brand_id: str) -> dict:
-    """Builds the static (rarely-changing) part of the KB and caches it."""
-    if brand_id in _kb_static_cache:
-        logger.info(f"KB static cache HIT for brand: {brand_id}")
-        return _kb_static_cache[brand_id]
+def _get_kb_version(supabase, brand_id: str) -> str:
+    """Cheap version stamp for a brand's KB — just one timestamp, no document text."""
+    try:
+        r = (
+            supabase.table("brand_kb")
+            .select("updated_at")
+            .eq("brand_id", brand_id)
+            .maybe_single()
+            .execute()
+        )
+        if r and r.data and r.data.get("updated_at"):
+            return str(r.data["updated_at"])
+    except Exception as e:
+        logger.warning(f"KB version lookup failed for {brand_id}: {e}")
+    return ""
 
-    logger.info(f"KB static cache MISS for brand: {brand_id} — building")
+
+async def _build_static_kb(brand_id: str, version: str) -> dict:
+    """Returns the static KB for a brand, rebuilding only if the version changed."""
+    cached = _kb_static_cache.get(brand_id)
+    if cached and cached[0] == version and version != "":
+        logger.info(f"KB static cache HIT for brand: {brand_id} (v={version})")
+        return cached[1]
+
+    logger.info(f"KB static cache MISS for brand: {brand_id} — building (v={version})")
     supabase = get_supabase()
 
     kb_response = (
@@ -38,9 +57,7 @@ async def _build_static_kb(brand_id: str) -> dict:
 
     if not kb_response or not kb_response.data:
         logger.warning(f"No KB found for brand: {brand_id}")
-        static = _empty_kb(brand_id)
-        # Don't cache an empty/missing KB — it may appear once set up
-        return static
+        return _empty_kb(brand_id)
 
     kb = kb_response.data
 
@@ -92,9 +109,10 @@ async def _build_static_kb(brand_id: str) -> dict:
         ),
     }
 
-    _kb_static_cache[brand_id] = static
+    # Cache with the version stamp so other workers detect changes
+    _kb_static_cache[brand_id] = (version, static)
     logger.info(
-        f"KB static cached for brand: {brand_name} | "
+        f"KB static cached for brand: {brand_name} (v={version}) | "
         f"Brand doc: {'yes' if static['brand_document'] else 'no'}"
     )
     return static
@@ -111,8 +129,9 @@ async def build_kb_context(brand_id: str) -> dict:
     """
     supabase = get_supabase()
 
-    # ── Static part — cached, rarely changes ──────────────────────
-    static = await _build_static_kb(brand_id)
+    # ── Static part — cached, rebuilt only when the KB version changes ──
+    version = _get_kb_version(supabase, brand_id)
+    static = await _build_static_kb(brand_id, version)
 
     # ── Dynamic part — always fresh ───────────────────────────────
     approved_posts = (

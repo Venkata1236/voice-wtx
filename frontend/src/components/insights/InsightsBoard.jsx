@@ -60,7 +60,7 @@ export default function InsightsBoard({ brandId }) {
       {/* Header with count bar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Insights</h2>
+          <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Notes</h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
             <div style={{ width: '100px', height: '4px', borderRadius: '2px', background: 'var(--sep)', overflow: 'hidden' }}>
               <div style={{ width: `${(countInfo.current / countInfo.max) * 100}%`, height: '100%', background: barColor }} />

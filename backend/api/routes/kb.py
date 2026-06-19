@@ -168,7 +168,7 @@ async def upload_document(
             supabase_admin.table("kb_documents")
             .select("id")
             .eq("brand_id", brand_id)
-            .eq("doc_type", doc_type)
+            .eq("doc_type", doc_type.value)
             .execute()
         )
 
@@ -195,7 +195,7 @@ async def upload_document(
                 supabase_admin.table("kb_documents")
                 .insert({
                     "brand_id": brand_id,
-                    "doc_type": doc_type,
+                    "doc_type": doc_type.value,
                     "file_name": file.filename,
                     "extracted_text": extracted_text,
                     "word_count": word_count,

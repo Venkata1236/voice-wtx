@@ -27,11 +27,11 @@ def _get_kb_version(supabase, brand_id: str) -> str:
             supabase.table("brand_kb")
             .select("updated_at")
             .eq("brand_id", brand_id)
-            .maybe_single()
+            .limit(1)
             .execute()
         )
-        if r and r.data and r.data.get("updated_at"):
-            return str(r.data["updated_at"])
+        if r and r.data and r.data[0].get("updated_at"):
+            return str(r.data[0]["updated_at"])
     except Exception as e:
         logger.warning(f"KB version lookup failed for {brand_id}: {e}")
     return ""
@@ -51,7 +51,7 @@ async def _build_static_kb(brand_id: str, version: str) -> dict:
         supabase.table("brand_kb")
         .select("*")
         .eq("brand_id", brand_id)
-        .maybe_single()
+        .limit(1)
         .execute()
     )
 
@@ -59,37 +59,42 @@ async def _build_static_kb(brand_id: str, version: str) -> dict:
         logger.warning(f"No KB found for brand: {brand_id}")
         return _empty_kb(brand_id)
 
-    kb = kb_response.data
+    kb = kb_response.data[0]
 
-    brand_doc = (
+    brand_doc_resp = (
         supabase.table("kb_documents")
         .select("extracted_text, file_name, word_count")
         .eq("brand_id", brand_id)
         .eq("doc_type", "brand_document")
         .eq("status", "approved")
-        .maybe_single()
+        .order("updated_at", desc=True)
+        .limit(1)
         .execute()
     )
+    brand_doc_row = brand_doc_resp.data[0] if brand_doc_resp and brand_doc_resp.data else None
 
-    personas_doc = (
+    personas_resp = (
         supabase.table("kb_documents")
         .select("extracted_text, file_name, word_count")
         .eq("brand_id", brand_id)
         .eq("doc_type", "audience_personas")
         .eq("status", "approved")
-        .maybe_single()
+        .order("updated_at", desc=True)
+        .limit(1)
         .execute()
     )
+    personas_doc_row = personas_resp.data[0] if personas_resp and personas_resp.data else None
 
     brand_response = (
         supabase.table("brands")
         .select("name, category")
         .eq("id", brand_id)
-        .maybe_single()
+        .limit(1)
         .execute()
     )
-    brand_name = brand_response.data.get("name", "Unknown Brand") if brand_response and brand_response.data else "Unknown Brand"
-    brand_category = brand_response.data.get("category", "") if brand_response and brand_response.data else ""
+    brand_row = brand_response.data[0] if brand_response and brand_response.data else None
+    brand_name = brand_row.get("name", "Unknown Brand") if brand_row else "Unknown Brand"
+    brand_category = brand_row.get("category", "") if brand_row else ""
 
     static = {
         "brand_id": brand_id,
@@ -99,14 +104,8 @@ async def _build_static_kb(brand_id: str, version: str) -> dict:
         "rules_do": kb.get("brand_rules_do", []),
         "rules_dont": kb.get("brand_rules_dont", []),
         "brief_template": kb.get("brief_template", {}),
-        "brand_document": (
-            brand_doc.data.get("extracted_text", "")
-            if brand_doc and brand_doc.data else ""
-        ),
-        "audience_personas": (
-            personas_doc.data.get("extracted_text", "")
-            if personas_doc and personas_doc.data else ""
-        ),
+        "brand_document": (brand_doc_row.get("extracted_text", "") if brand_doc_row else ""),
+        "audience_personas": (personas_doc_row.get("extracted_text", "") if personas_doc_row else ""),
     }
 
     # Cache with the version stamp so other workers detect changes

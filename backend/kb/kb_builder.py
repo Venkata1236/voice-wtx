@@ -262,6 +262,7 @@ def format_kb_for_prompt(kb_context: dict) -> str:
         "- No headings, no markdown formatting symbols (no #, no **).\n"
         "- No word count, character count, or any meta-commentary.\n"
         "- No preamble like 'Here is your copy:'.\n"
+        "- Use emojis sparingly: at most 1-3 relevant emojis where they suit the platform and brand tone. Do NOT overuse them, and keep professional formats like LinkedIn emoji-light.\n"
         "- After the copy, on a NEW LINE write exactly: KEYWORDS: followed by 5-8 unique comma-separated SEO keywords and hashtags relevant to the copy.\n"
         "- Never repeat the same keyword or hashtag.\n"
         "- Stop immediately after the KEYWORDS line. Do not write anything else.\n"

@@ -1,5 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, status
 from loguru import logger
+from api.middleware.rate_limiter import limiter
+from fastapi import Request
 from db.supabase_client import get_supabase_admin
 from api.middleware.role_guard import require_any
 import uuid
@@ -14,7 +16,8 @@ MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024
 
 
 @router.post("/upload")
-async def upload_image(
+@limiter.limit("10/minute")
+async def upload_image(request: Request,
     file: UploadFile = File(...),
     current_user: dict = Depends(require_any),
 ):

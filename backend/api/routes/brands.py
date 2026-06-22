@@ -1,5 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from loguru import logger
+from api.middleware.rate_limiter import limiter
+from fastapi import Request
 
 from db.supabase_client import get_supabase, get_supabase_admin
 from schemas.brand import BrandCreate, BrandUpdate, BrandResponse
@@ -108,7 +110,8 @@ async def get_brand(
 
 # ── POST /api/brands ──────────────────────────────────────────────
 @router.post("/", response_model=BrandResponse, status_code=status.HTTP_201_CREATED)
-async def create_brand(
+@limiter.limit("10/minute")
+async def create_brand(request: Request,
     payload: BrandCreate,
     # Only admin can create brands
     current_user: dict = Depends(require_admin),

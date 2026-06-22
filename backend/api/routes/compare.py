@@ -89,10 +89,10 @@ async def compare_generate(
             supabase_admin.table("chat_sessions")
             .select("id")
             .eq("id", session_id)
-            .maybe_single()
+            .limit(1)
             .execute()
         )
-        session_exists = bool(check and check.data)
+        session_exists = bool(check and check.data and len(check.data) > 0)
 
     if not session_exists:
         session_response = (
@@ -199,10 +199,10 @@ async def compare_generate_stream(
             supabase_admin.table("chat_sessions")
             .select("id")
             .eq("id", session_id)
-            .maybe_single()
+            .limit(1)
             .execute()
         )
-        session_exists = bool(check and check.data)
+        session_exists = bool(check and check.data and len(check.data) > 0)
 
     # Create new session if none provided OR the provided one was deleted
     created_new = not session_exists
@@ -226,10 +226,13 @@ async def compare_generate_stream(
         system_prompt = format_kb_for_prompt(kb_context)
         system_prompt += "\n\n" + build_length_instruction(payload.format.value, user_prompt)
 
-        # ── Vision: if an image was attached, extract visual context ──
+        # ── Vision: start extraction in parallel — don't block the stream ──
         effective_prompt = user_prompt
         if getattr(payload, 'image_url', None):
-            visual_context = await extract_visual_context(payload.image_url)
+            import asyncio as _asyncio
+            vision_task = _asyncio.create_task(extract_visual_context(payload.image_url))
+            yield f"data: {json_lib.dumps({'type': 'vision_reading'})}\n\n"
+            visual_context = await vision_task
             if visual_context:
                 effective_prompt = (
                     f"VISUAL CONTEXT (extracted from attached image):\n{visual_context}\n\n"
@@ -261,7 +264,6 @@ async def compare_generate_stream(
                 logger.error(f"Streaming error for pane {pane_index} model {model}: {e}")
 
             final_copy, keywords = parse_copy_and_keywords(full_content)
-            relevance = await score_brand_relevance(final_copy, kb_context)
 
             logger.info(
                 f"Compare stream pane {pane_index} | "
@@ -271,6 +273,7 @@ async def compare_generate_stream(
                 f"Keywords: {keywords}"
             )
 
+            # Save immediately with score=0 placeholder
             variant_id = None
             try:
                 variant_response = (
@@ -282,7 +285,7 @@ async def compare_generate_stream(
                         "format": payload.format.value,
                         "brief": user_prompt,
                         "content": final_copy,
-                        "score": relevance,
+                        "score": 0,
                         "status": "pending",
                         "keywords": json_lib.dumps(keywords),
                         "turn_id": turn_id,
@@ -295,7 +298,17 @@ async def compare_generate_stream(
             except Exception as e:
                 logger.error(f"Failed to save compare variant {pane_index}: {e}")
 
-            yield f"data: {json_lib.dumps({'type': 'pane_done', 'index': pane_index, 'variant_id': variant_id, 'session_id': session_id, 'turn_id': turn_id, 'turn_type': 'compare', 'keywords': keywords, 'model': model, 'format': payload.format.value, 'brand_id': payload.brand_id, 'content': final_copy, 'score': relevance})}\n\n"
+            # Emit pane_done immediately so the UI unlocks
+            yield f"data: {json_lib.dumps({'type': 'pane_done', 'index': pane_index, 'variant_id': variant_id, 'session_id': session_id, 'turn_id': turn_id, 'turn_type': 'compare', 'keywords': keywords, 'model': model, 'format': payload.format.value, 'brand_id': payload.brand_id, 'content': final_copy, 'score': 0})}\n\n"
+
+            # Score in background — emits a score_update event when done
+            relevance = await score_brand_relevance(final_copy, kb_context)
+            if relevance and variant_id:
+                try:
+                    supabase_admin.table("copy_variants").update({"score": relevance}).eq("id", variant_id).execute()
+                except Exception:
+                    pass
+            yield f"data: {json_lib.dumps({'type': 'score_update', 'index': pane_index, 'variant_id': variant_id, 'score': relevance})}\n\n"
 
         # Auto-name a brand-new chat with a concise title (ChatGPT-style).
         if created_new:

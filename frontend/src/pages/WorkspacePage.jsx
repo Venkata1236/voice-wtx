@@ -61,10 +61,16 @@ export default function WorkspacePage() {
   }, [activeBrand?.id]);
 
   useEffect(() => {
-    api.get('/api/settings/feature-flags').then((res) => {
-      const forge = res.data.find((f) => f.flag_name === 'forge_mode');
-      setForgeEnabled(forge?.is_enabled || false);
-    });
+    const fetchFlags = () => {
+      api.get('/api/settings/feature-flags').then((res) => {
+        const forge = res.data.find((f) => f.flag_name === 'forge_mode');
+        setForgeEnabled(forge?.is_enabled || false);
+      }).catch(() => {});
+    };
+    fetchFlags();
+    const handler = () => fetchFlags();
+    window.addEventListener('voice-flags-updated', handler);
+    return () => window.removeEventListener('voice-flags-updated', handler);
   }, []);
 
   const handleNewChat = () => {
@@ -108,7 +114,7 @@ export default function WorkspacePage() {
           <ChatTab
             brand={activeBrand}
             activeSessionId={activeSessionId}
-            onSessionCreated={(id) => setActiveSessionId(id)}
+            onSessionCreated={(id) => { setActiveSessionId(id); fetchSessions(); }}
             mode={chatMode}
           />
         );
@@ -117,7 +123,7 @@ export default function WorkspacePage() {
           <ForgeTab
             brand={activeBrand}
             activeSessionId={activeSessionId}
-            onSessionCreated={(id) => setActiveSessionId(id)}
+            onSessionCreated={(id) => { setActiveSessionId(id); fetchSessions(); }}
           />
         );
       case 'insights':

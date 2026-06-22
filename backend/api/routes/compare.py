@@ -21,6 +21,7 @@ from utils.vision import extract_visual_context
 from utils.scorer import score_brand_relevance
 import json as json_lib
 import uuid
+import asyncio
 
 router = APIRouter(prefix="/api/compare", tags=["Compare Mode"])
 
@@ -229,8 +230,7 @@ async def compare_generate_stream(
         # ── Vision: start extraction in parallel — don't block the stream ──
         effective_prompt = user_prompt
         if getattr(payload, 'image_url', None):
-            import asyncio as _asyncio
-            vision_task = _asyncio.create_task(extract_visual_context(payload.image_url))
+            vision_task = asyncio.create_task(extract_visual_context(payload.image_url))
             yield f"data: {json_lib.dumps({'type': 'vision_reading'})}\n\n"
             visual_context = await vision_task
             if visual_context:
@@ -240,11 +240,16 @@ async def compare_generate_stream(
                 )
                 yield f"data: {json_lib.dumps({'type': 'vision_done', 'context': visual_context})}\n\n"
 
-        for pane_index, model in enumerate([payload.model_a.value, payload.model_b.value]):
-            yield f"data: {json_lib.dumps({'type': 'pane_start', 'index': pane_index, 'model': model})}\n\n"
+        # ── Both panes run CONCURRENTLY ──────────────────────────────
+        # Each pane streams its events into a shared queue; the generator
+        # drains the queue and interleaves both panes into the one SSE stream.
+        queue: asyncio.Queue = asyncio.Queue()
+        _SENTINEL = object()
+
+        async def run_pane(pane_index: int, model: str):
+            await queue.put(f"data: {json_lib.dumps({'type': 'pane_start', 'index': pane_index, 'model': model})}\n\n")
 
             full_content = ""
-
             try:
                 async for chunk in stream_from_model(
                     model=model,
@@ -253,24 +258,21 @@ async def compare_generate_stream(
                 ):
                     full_content += chunk
                     if 'KEYWORDS:' not in full_content:
-                        yield f"data: {json_lib.dumps({'type': 'token', 'index': pane_index, 'text': chunk})}\n\n"
+                        await queue.put(f"data: {json_lib.dumps({'type': 'token', 'index': pane_index, 'text': chunk})}\n\n")
                     else:
                         copy_part = full_content.split('KEYWORDS:')[0]
                         already_sent = full_content.replace(chunk, '')
                         new_copy = copy_part[len(already_sent):]
                         if new_copy:
-                            yield f"data: {json_lib.dumps({'type': 'token', 'index': pane_index, 'text': new_copy})}\n\n"
+                            await queue.put(f"data: {json_lib.dumps({'type': 'token', 'index': pane_index, 'text': new_copy})}\n\n")
             except Exception as e:
                 logger.error(f"Streaming error for pane {pane_index} model {model}: {e}")
 
             final_copy, keywords = parse_copy_and_keywords(full_content)
 
             logger.info(
-                f"Compare stream pane {pane_index} | "
-                f"Model: {model} | "
-                f"Full content length: {len(full_content)} | "
-                f"Final copy length: {len(final_copy)} | "
-                f"Keywords: {keywords}"
+                f"Compare stream pane {pane_index} | Model: {model} | "
+                f"Final copy length: {len(final_copy)} | Keywords: {keywords}"
             )
 
             # Save immediately with score=0 placeholder
@@ -298,17 +300,37 @@ async def compare_generate_stream(
             except Exception as e:
                 logger.error(f"Failed to save compare variant {pane_index}: {e}")
 
-            # Emit pane_done immediately so the UI unlocks
-            yield f"data: {json_lib.dumps({'type': 'pane_done', 'index': pane_index, 'variant_id': variant_id, 'session_id': session_id, 'turn_id': turn_id, 'turn_type': 'compare', 'keywords': keywords, 'model': model, 'format': payload.format.value, 'brand_id': payload.brand_id, 'content': final_copy, 'score': 0})}\n\n"
+            await queue.put(f"data: {json_lib.dumps({'type': 'pane_done', 'index': pane_index, 'variant_id': variant_id, 'session_id': session_id, 'turn_id': turn_id, 'turn_type': 'compare', 'keywords': keywords, 'model': model, 'format': payload.format.value, 'brand_id': payload.brand_id, 'content': final_copy, 'score': 0})}\n\n")
 
-            # Score in background — emits a score_update event when done
+            # Score in background
             relevance = await score_brand_relevance(final_copy, kb_context)
             if relevance and variant_id:
                 try:
                     supabase_admin.table("copy_variants").update({"score": relevance}).eq("id", variant_id).execute()
                 except Exception:
                     pass
-            yield f"data: {json_lib.dumps({'type': 'score_update', 'index': pane_index, 'variant_id': variant_id, 'score': relevance})}\n\n"
+            await queue.put(f"data: {json_lib.dumps({'type': 'score_update', 'index': pane_index, 'variant_id': variant_id, 'score': relevance})}\n\n")
+
+        # Launch both panes at once
+        pane_tasks = [
+            asyncio.create_task(run_pane(0, payload.model_a.value)),
+            asyncio.create_task(run_pane(1, payload.model_b.value)),
+        ]
+
+        async def _close_when_done():
+            await asyncio.gather(*pane_tasks)
+            await queue.put(_SENTINEL)
+
+        closer = asyncio.create_task(_close_when_done())
+
+        # Drain the queue, interleaving both panes' events as they arrive
+        while True:
+            item = await queue.get()
+            if item is _SENTINEL:
+                break
+            yield item
+
+        await closer
 
         # Auto-name a brand-new chat with a concise title (ChatGPT-style).
         if created_new:

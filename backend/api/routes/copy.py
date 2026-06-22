@@ -159,10 +159,10 @@ async def generate_copy_stream(
             supabase_admin.table("chat_sessions")
             .select("id")
             .eq("id", session_id)
-            .maybe_single()
+            .limit(1)
             .execute()
         )
-        session_exists = bool(check and check.data)
+        session_exists = bool(check and check.data and len(check.data) > 0)
 
     # Create new session if none provided OR the provided one was deleted
     created_new = not session_exists
@@ -201,9 +201,12 @@ async def generate_copy_stream(
                 "means rewrite it in a Hindi/Telugu-English mix). "
                 "Do NOT return the original copy unchanged. Return only the revised copy."
             )
-        # ── Vision: if an image was attached, extract visual context ──
+        # ── Vision: start extraction in parallel — don't block the stream ──
         elif getattr(payload, 'image_url', None):
-            visual_context = await extract_visual_context(payload.image_url)
+            import asyncio as _asyncio
+            vision_task = _asyncio.create_task(extract_visual_context(payload.image_url))
+            yield f"data: {json.dumps({'type': 'vision_reading'})}\n\n"
+            visual_context = await vision_task
             if visual_context:
                 effective_prompt = (
                     f"VISUAL CONTEXT (extracted from attached image):\n{visual_context}\n\n"
@@ -234,7 +237,6 @@ async def generate_copy_stream(
 
             from agents.langgraph.nodes.format_node import parse_copy_and_keywords
             final_copy, keywords = parse_copy_and_keywords(full_content)
-            relevance = await score_brand_relevance(final_copy, kb_context)
 
             logger.info(
                 f"Stream variant {variant_index} complete | "
@@ -242,7 +244,8 @@ async def generate_copy_stream(
                 f"Copy length: {len(final_copy)}"
             )
 
-            # Save to database
+            # Save to database immediately (score=0 placeholder)
+            variant_id = None
             try:
                 variant_response = (
                     supabase_admin.table("copy_variants")
@@ -253,7 +256,7 @@ async def generate_copy_stream(
                         "format": payload.format.value,
                         "brief": user_prompt,
                         "content": final_copy,
-                        "score": relevance,
+                        "score": 0,
                         "status": "pending",
                         "keywords": json.dumps(keywords),
                         "turn_id": turn_id,
@@ -267,7 +270,17 @@ async def generate_copy_stream(
                 variant_id = None
                 logger.error(f"Failed to save variant {variant_index}: {e}")
 
-            yield f"data: {json.dumps({'type': 'variant_done', 'index': variant_index, 'variant_id': variant_id, 'session_id': session_id, 'turn_id': turn_id, 'turn_type': 'single', 'keywords': keywords, 'model': payload.model.value, 'format': payload.format.value, 'brand_id': payload.brand_id, 'content': final_copy, 'score': relevance})}\n\n"
+            # Emit variant_done immediately so the UI unlocks
+            yield f"data: {json.dumps({'type': 'variant_done', 'index': variant_index, 'variant_id': variant_id, 'session_id': session_id, 'turn_id': turn_id, 'turn_type': 'single', 'keywords': keywords, 'model': payload.model.value, 'format': payload.format.value, 'brand_id': payload.brand_id, 'content': final_copy, 'score': 0})}\n\n"
+
+            # Score in background — emits a score_update event when done
+            relevance = await score_brand_relevance(final_copy, kb_context)
+            if relevance and variant_id:
+                try:
+                    supabase_admin.table("copy_variants").update({"score": relevance}).eq("id", variant_id).execute()
+                except Exception:
+                    pass
+            yield f"data: {json.dumps({'type': 'score_update', 'index': variant_index, 'variant_id': variant_id, 'score': relevance})}\n\n"
 
         # Auto-name a brand-new chat with a concise title (ChatGPT-style).
         # Only for newly created sessions — never overwrites a user rename.

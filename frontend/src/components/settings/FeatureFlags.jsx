@@ -26,6 +26,8 @@ export default function FeatureFlags() {
     setForgeEnabled(newValue);
     try {
       await api.patch('/api/settings/feature-flags/forge_mode', { is_enabled: newValue });
+      // Tell the workspace to re-read flags so the Forge tab appears/hides instantly
+      window.dispatchEvent(new CustomEvent('voice-flags-updated'));
     } catch {
       setForgeEnabled(!newValue);
     }

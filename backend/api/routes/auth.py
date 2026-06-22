@@ -4,6 +4,8 @@ from jose import jwt
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from loguru import logger
+from api.middleware.rate_limiter import limiter
+from fastapi import Request
 import os
 from dotenv import load_dotenv
 
@@ -52,7 +54,8 @@ def create_access_token(user_id: str) -> str:
 
 # ── POST /api/auth/login ──────────────────────────────────────────
 @router.post("/login", response_model=TokenResponse)
-async def login(payload: UserLogin):
+@limiter.limit("5/minute")
+async def login(request: Request, payload: UserLogin):
     """
     Team member login with email and password.
     Returns a JWT token to use in all subsequent requests.

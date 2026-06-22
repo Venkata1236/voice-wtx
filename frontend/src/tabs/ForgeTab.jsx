@@ -50,15 +50,18 @@ export default function ForgeTab({ brand, activeSessionId, onSessionCreated }) {
       setSessionId(result.session_id);
       setStarted(true);
       onSessionCreated(result.session_id);
-      // Refresh the sidebar so the new forge chat appears immediately
-      window.dispatchEvent(new CustomEvent('voice-session-created'));
     } catch (err) {
+      console.error('[forge] start request did not resolve cleanly:', err);
       setError(
         err.response?.data?.detail ||
         'Forge debate failed. Make sure Ollama is running locally with mistral and gemma models.'
       );
     } finally {
       setLoading(false);
+      // Refresh the sidebar no matter what — the backend creates the
+      // chat_sessions row at the start of the debate, so the session
+      // exists even if the request later errors or times out.
+      window.dispatchEvent(new CustomEvent('voice-session-created'));
     }
   };
 

@@ -50,6 +50,8 @@ export default function ForgeTab({ brand, activeSessionId, onSessionCreated }) {
       setSessionId(result.session_id);
       setStarted(true);
       onSessionCreated(result.session_id);
+      // Refresh the sidebar so the new forge chat appears immediately
+      window.dispatchEvent(new CustomEvent('voice-session-created'));
     } catch (err) {
       setError(
         err.response?.data?.detail ||

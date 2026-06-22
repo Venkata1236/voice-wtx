@@ -5,7 +5,7 @@ export default function Topbar({ activeView, setActiveView, mode, setMode, onOpe
     { key: 'single', label: 'Single' },
     { key: 'compare', label: 'Compare' },
     { key: 'insights', label: 'Notes' },
-    ...(forgeEnabled ? [{ key: 'forge', label: '⚡ Forge' }] : []),
+    ...(forgeEnabled ? [{ key: 'forge', label: 'Forge' }] : []),
   ];
 
   // Exactly one button is active: in chat the active one is the mode,

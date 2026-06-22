@@ -3,6 +3,8 @@ from loguru import logger
 import tempfile
 import os
 from datetime import datetime, timezone
+from api.middleware.rate_limiter import limiter
+from fastapi import Request
 
 from db.supabase_client import get_supabase, get_supabase_admin
 from schemas.kb import KBResponse, KBUpdate, KBDocumentResponse, DocType
@@ -122,7 +124,8 @@ async def update_kb(
 
 # ── POST /api/kb/{brand_id}/upload ───────────────────────────────
 @router.post("/{brand_id}/upload", response_model=KBDocumentResponse)
-async def upload_document(
+@limiter.limit("5/minute")
+async def upload_document(request: Request,
     brand_id: str,
     doc_type: DocType,
     # File upload — accepts PDF or DOCX

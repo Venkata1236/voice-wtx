@@ -29,6 +29,7 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
   const [imagePreview, setImagePreview] = useState(null);
   // Refine — when set, the next send rewrites this variant with the same model
   const [refineTarget, setRefineTarget] = useState(null);
+  const [visionReading, setVisionReading] = useState(false);
 
   const isStreamingRef = useRef(false);
   const scrollRef = useRef(null);
@@ -47,6 +48,7 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
       setImageUrl(null);
       setImagePreview(null);
       setRefineTarget(null);
+      setVisionReading(false);
 
       copyService.getThread(activeSessionId).then((data) => {
         setTurns(data?.turns || []);
@@ -186,6 +188,15 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
                 ...v,
                 content: (v.content || '') + text,
               })),
+            onVisionReading: () => setVisionReading(true),
+            onVisionDone: () => setVisionReading(false),
+            onVisionReading: () => setVisionReading(true),
+            onVisionDone: () => setVisionReading(false),
+                        onScoreUpdate: (data) =>
+              updateTurnVariant(turnId, data.index, (v) => ({
+                ...v,
+                score: data.score,
+              })),
             onVariantDone: (data) =>
               updateTurnVariant(turnId, data.index, (v) => ({
                 ...v,
@@ -204,6 +215,7 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
             onDone: () => {
               setLoading(false);
               isStreamingRef.current = false;
+              setVisionReading(false);
               window.dispatchEvent(new CustomEvent('voice-session-created'));
             },
           }
@@ -320,6 +332,13 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
                 ...v,
                 content: (v.content || '') + text,
               })),
+            onVisionReading: () => setVisionReading(true),
+            onVisionDone: () => setVisionReading(false),
+                        onScoreUpdate: (data) =>
+              updateTurnVariant(turnId, data.index, (v) => ({
+                ...v,
+                score: data.score,
+              })),
             onPaneDone: (data) =>
               updateTurnVariant(turnId, data.index, (v) => ({
                 ...v,
@@ -429,6 +448,19 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
         )}
 
         {/* Input bar */}
+        {/* Vision reading indicator */}
+        {visionReading && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '8px',
+            padding: '7px 12px', borderRadius: 'var(--radius-md)',
+            background: 'var(--surface)', border: '1px solid var(--sep)',
+            fontSize: '12px', color: 'var(--label3)',
+          }}>
+            <span style={{ animation: 'pulse 1s ease-in-out infinite' }}>👁</span>
+            Reading image...
+          </div>
+        )}
+
         {/* Refine banner */}
         {refineTarget && (
           <div

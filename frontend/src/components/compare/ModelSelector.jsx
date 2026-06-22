@@ -1,11 +1,11 @@
 const MODELS = {
   priority: [
-    { value: 'claude-haiku-4-5', label: 'Claude Haiku 4.5', provider: 'Anthropic', color: '#D97706' },
+    { value: 'claude-haiku-4-5', label: 'Haiku 4.5', provider: 'Anthropic', color: '#D97706' },
     { value: 'sarvam-30b', label: 'Sarvam', provider: 'Sarvam', color: '#ea580c' },
   ],
   alternatives: [
-    { value: 'gpt-4o-mini', label: 'GPT-4o Mini', provider: 'OpenAI', color: '#10a37f' },
-    { value: 'gemini-1.5-flash', label: 'Gemini Flash', provider: 'Google', color: '#4285f4' },
+    { value: 'gpt-4o-mini', label: 'GPT', provider: 'OpenAI', color: '#10a37f' },
+    { value: 'gemini-1.5-flash', label: 'Gemini', provider: 'Google', color: '#4285f4' },
   ],
 };
 
@@ -33,8 +33,6 @@ export default function ModelSelector({ value, onChange, openUp = false }) {
       >
         <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: current.color }} />
         <span style={{ fontSize: '13px', fontWeight: 500 }}>{current.label}</span>
-        
-        <span style={{ fontSize: '9px', color: 'var(--label3)', transform: open ? 'rotate(180deg)' : 'none' }}>▾</span>
       </div>
 
       {open && (
@@ -83,7 +81,6 @@ function ModelRow({ model, selected, onClick }) {
       <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: model.color, flexShrink: 0 }} />
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: '13px', fontWeight: 600 }}>{model.label}</div>
-        
       </div>
     </div>
   );

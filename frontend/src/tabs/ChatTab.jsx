@@ -418,7 +418,7 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
       </div>
 
       {/* Input zone */}
-      <div style={{ borderTop: '1px solid var(--sep)', padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '900px', width: '100%', margin: '0 auto' }}>
+      <div style={{ padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '900px', width: '100%', margin: '0 auto' }}>
 
         {/* Mode toggle + format + model selectors */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>

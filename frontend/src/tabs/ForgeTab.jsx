@@ -22,6 +22,8 @@ export default function ForgeTab({ brand, activeSessionId, onSessionCreated }) {
   const [sessionId, setSessionId] = useState(activeSessionId);
   const [started, setStarted] = useState(false);
   const [showDebate, setShowDebate] = useState(false);
+  const [showRefine, setShowRefine] = useState(false);
+  const [refineText, setRefineText] = useState('');
   const scrollRef = useRef(null);
 
   // Auto-scroll to the newest message
@@ -40,6 +42,8 @@ export default function ForgeTab({ brand, activeSessionId, onSessionCreated }) {
       setCriticApproved(false);
       setStarted(false);
       setShowDebate(false);
+      setShowRefine(false);
+      setRefineText('');
       setBrief('');
       setInput('');
       return;
@@ -187,47 +191,12 @@ export default function ForgeTab({ brand, activeSessionId, onSessionCreated }) {
             </div>
           )}
 
-          {/* Final copy as a VariantCard — same border as single/compare */}
-          {finalCopy && (
-            <VariantCard
-              variant={{ model: 'forge', content: finalCopy, keywords, score, format, streaming: false }}
-            />
-          )}
-
-          {/* Agree / Approve actions on the current result */}
-          {finalCopy && !isApproved && !loading && (
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center', marginTop: '10px' }}>
-              {criticApproved && (
-                <span style={{ marginRight: 'auto', fontSize: '11px', color: 'var(--green)', fontWeight: 600 }}>
-                  ✓ Critic approved — review and approve to save
-                </span>
-              )}
-              <button onClick={() => runTurn(null)} disabled={loading} style={pillBtn}>
-                Agree &amp; refine
-              </button>
-              <button
-                onClick={handleApprove}
-                disabled={loading}
-                style={{ ...pillBtn, borderColor: 'rgba(34,197,94,.35)', color: 'var(--green)', background: 'var(--green-bg)' }}
-              >
-                Approve
-              </button>
-            </div>
-          )}
-
-          {isApproved && (
-            <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-md)', background: 'var(--green-bg)', color: 'var(--green)', fontSize: '12px', fontWeight: 600, marginTop: '8px' }}>
-              Copy approved and saved to Knowledge Base
-            </div>
-          )}
-
-          {/* ── Agent debate — collapsible dropdown, BELOW the result so
-                expanding it never pushes the response around ── */}
+          {/* ── Agent debate — collapsible dropdown, between brief and response ── */}
           {debateHistory.length > 0 && (
             <div style={{
               border: '1px solid var(--sep)',
               borderRadius: 'var(--radius-md)',
-              marginTop: '12px',
+              marginBottom: '12px',
               overflow: 'hidden',
               background: 'var(--surface)',
             }}>
@@ -282,6 +251,78 @@ export default function ForgeTab({ brand, activeSessionId, onSessionCreated }) {
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Final copy as a VariantCard — same border as single/compare */}
+          {finalCopy && (
+            <VariantCard
+              variant={{ model: 'forge', content: finalCopy, keywords, score, format, streaming: false }}
+            />
+          )}
+
+          {/* Return / Refine / Approve actions on the current result */}
+          {finalCopy && !isApproved && !loading && (
+            <div style={{ marginTop: '10px' }}>
+              {showRefine ? (
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <input
+                    value={refineText}
+                    onChange={(e) => setRefineText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const t = refineText.trim();
+                        if (t) { setShowRefine(false); setRefineText(''); runTurn(t); }
+                      }
+                    }}
+                    placeholder="What should change? e.g. fewer emojis, punchier hook…"
+                    autoFocus
+                    style={{
+                      flex: 1, padding: '8px 12px', borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--sep)', fontSize: '13px', fontFamily: 'inherit', outline: 'none',
+                    }}
+                  />
+                  <button
+                    onClick={() => {
+                      const t = refineText.trim();
+                      if (t) { setShowRefine(false); setRefineText(''); runTurn(t); }
+                    }}
+                    style={{ ...pillBtn, background: '#1E1E2A', color: '#fff', border: 'none' }}
+                  >
+                    Send
+                  </button>
+                  <button onClick={() => { setShowRefine(false); setRefineText(''); }} style={pillBtn}>
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                  {criticApproved && (
+                    <span style={{ marginRight: 'auto', fontSize: '11px', color: 'var(--green)', fontWeight: 600 }}>
+                      ✓ Critic approved — review and approve to save
+                    </span>
+                  )}
+                  <button onClick={() => runTurn(null)} disabled={loading} style={pillBtn} title="Send back to the agents for another round">
+                    Return
+                  </button>
+                  <button onClick={() => setShowRefine(true)} disabled={loading} style={pillBtn} title="Type how you want it tuned">
+                    Refine
+                  </button>
+                  <button
+                    onClick={handleApprove}
+                    disabled={loading}
+                    style={{ ...pillBtn, borderColor: 'rgba(34,197,94,.35)', color: 'var(--green)', background: 'var(--green-bg)' }}
+                  >
+                    Approve
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {isApproved && (
+            <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-md)', background: 'var(--green-bg)', color: 'var(--green)', fontSize: '12px', fontWeight: 600, marginTop: '8px' }}>
+              Copy approved and saved to Knowledge Base
             </div>
           )}
 

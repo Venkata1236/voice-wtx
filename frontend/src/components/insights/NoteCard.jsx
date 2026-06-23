@@ -8,6 +8,7 @@ const COLOR_MAP = {
 };
 
 const TAG_LABELS = {
+  misc: 'Miscellaneous',
   client_feedback: 'Client feedback',
   brand_rule: 'Brand rule',
   important: 'Important',
@@ -32,23 +33,21 @@ export default function NoteCard({ note, onTogglePin, onDelete, onEdit }) {
         <span style={{ position: 'absolute', top: '8px', right: '8px', fontSize: '12px' }}>📌</span>
       )}
 
-      {note.tag && (
-        <span
-          style={{
-            fontSize: '9px',
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            color: 'var(--label2)',
-            background: 'rgba(255,255,255,0.6)',
-            padding: '2px 6px',
-            borderRadius: 'var(--radius-sm)',
-            alignSelf: 'flex-start',
-            marginBottom: '6px',
-          }}
-        >
-          {TAG_LABELS[note.tag] || note.tag}
-        </span>
-      )}
+      <span
+        style={{
+          fontSize: '9px',
+          fontWeight: 700,
+          textTransform: 'uppercase',
+          color: 'var(--label2)',
+          background: 'rgba(255,255,255,0.6)',
+          padding: '2px 6px',
+          borderRadius: 'var(--radius-sm)',
+          alignSelf: 'flex-start',
+          marginBottom: '6px',
+        }}
+      >
+        {TAG_LABELS[note.tag] || note.tag || 'Miscellaneous'}
+      </span>
 
       <div
         style={{ fontSize: '13px', color: 'var(--label)', lineHeight: 1.6, flex: 1, whiteSpace: 'pre-wrap' }}

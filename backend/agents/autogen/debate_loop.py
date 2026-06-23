@@ -102,4 +102,5 @@ async def run_forge_debate(
         "critic": critic_name,
         "turns": len(debate_history),
         "is_approved": is_approved,
+        "kb_context": kb_context,
     }

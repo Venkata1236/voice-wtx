@@ -1,5 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends, status, Request
+from fastapi.responses import StreamingResponse
 from loguru import logger
+from autogen_agentchat.messages import TextMessage
+from autogen_agentchat.base import TaskResult
 
 from db.supabase_client import get_supabase, get_supabase_admin
 from schemas.forge import ForgeStartRequest, ForgeTurnRequest, ForgeResponse
@@ -7,6 +10,7 @@ from api.middleware.auth_guard import get_current_user
 from api.middleware.role_guard import require_any
 from api.middleware.rate_limiter import limiter
 from agents.orchestrator import run_forge
+from agents.autogen.debate_loop import build_forge_team
 from agents.langgraph.nodes.format_node import parse_copy_and_keywords
 from utils.scorer import score_brand_relevance
 import json
@@ -37,6 +41,104 @@ async def check_forge_enabled():
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Forge mode is not enabled. Ask your Admin to enable it in Settings > Feature Flags.",
         )
+
+
+# ── POST /api/forge/start-stream (SSE) ─────────────────────────────
+@router.post("/start-stream")
+@limiter.limit("5/minute")
+async def start_forge_stream(
+    request: Request,
+    payload: ForgeStartRequest,
+    current_user: dict = Depends(require_any),
+):
+    """
+    Streaming Forge debate. Emits each agent's message live as the
+    debate unfolds, then a final saved variant (parsed + brand-scored).
+    SSE events: session, debate_message, final, done, error.
+    """
+    await check_forge_enabled()
+
+    supabase_admin = get_supabase_admin()
+
+    # Create the session up front so it exists even if the stream drops
+    session_id = payload.session_id
+    if not session_id:
+        session_response = (
+            supabase_admin.table("chat_sessions")
+            .insert({
+                "user_id": current_user["id"],
+                "brand_id": payload.brand_id,
+                "mode": "forge",
+                "title": payload.brief[:50],
+            })
+            .execute()
+        )
+        session_id = session_response.data[0]["id"]
+
+    generator_name = payload.generator.value
+    critic_name = payload.critic.value
+
+    async def event_generator():
+        try:
+            yield f"data: {json.dumps({'type': 'session', 'session_id': session_id})}\n\n"
+
+            team, task, kb_context = await build_forge_team(
+                brand_id=payload.brand_id,
+                generator_name=generator_name,
+                critic_name=critic_name,
+                brief=payload.brief,
+            )
+
+            final_copy = None
+            is_approved = False
+            turns = 0
+
+            async for message in team.run_stream(task=task):
+                if isinstance(message, TaskResult):
+                    continue
+                if isinstance(message, TextMessage):
+                    turns += 1
+                    yield f"data: {json.dumps({'type': 'debate_message', 'agent': message.source, 'content': message.content})}\n\n"
+                    if message.source == generator_name:
+                        final_copy = message.content
+                    if message.source == critic_name and "APPROVED" in message.content:
+                        is_approved = True
+
+            # Parse + score + save the final copy as a chat turn
+            turn_id = str(uuid.uuid4())
+            keywords = []
+            score_val = 0
+            if final_copy:
+                final_copy, keywords = parse_copy_and_keywords(final_copy)
+                relevance = await score_brand_relevance(final_copy, kb_context)
+                score_val = relevance or (100 if is_approved else 70)
+                try:
+                    supabase_admin.table("copy_variants").insert({
+                        "session_id": session_id,
+                        "brand_id": payload.brand_id,
+                        "model": "forge",
+                        "format": payload.format,
+                        "brief": payload.brief,
+                        "content": final_copy,
+                        "score": score_val,
+                        "status": "pending",
+                        "keywords": json.dumps(keywords),
+                        "turn_id": turn_id,
+                        "turn_type": "forge",
+                        "agent_generator": generator_name,
+                        "agent_critic": critic_name,
+                    }).execute()
+                except Exception as e:
+                    logger.error(f"Failed to save forge variant: {e}")
+
+            yield f"data: {json.dumps({'type': 'final', 'session_id': session_id, 'content': final_copy, 'keywords': keywords, 'score': score_val, 'is_approved': is_approved, 'turn_id': turn_id, 'generator': generator_name, 'critic': critic_name, 'turns': turns})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+        except Exception as e:
+            logger.error(f"Forge stream failed: {e}")
+            yield f"data: {json.dumps({'type': 'error', 'detail': f'{str(e)}. Make sure Ollama is running locally with mistral and gemma models.'})}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
 # ── POST /api/forge/start ──────────────────────────────────────────

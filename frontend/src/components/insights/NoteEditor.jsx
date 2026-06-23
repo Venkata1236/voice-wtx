@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 const COLORS = ['yellow', 'green', 'red', 'blue', 'orange', 'purple'];
 const TAGS = [
-  { value: '', label: 'No tag' },
+  { value: 'misc', label: 'Miscellaneous' },
   { value: 'client_feedback', label: 'Client feedback' },
   { value: 'brand_rule', label: 'Brand rule' },
   { value: 'important', label: 'Important' },
@@ -22,11 +22,14 @@ const COLOR_MAP = {
 export default function NoteEditor({ note, onSave, onCancel }) {
   const [content, setContent] = useState(note?.content || '');
   const [color, setColor] = useState(note?.color || 'yellow');
-  const [tag, setTag] = useState(note?.tag || '');
+  const [tag, setTag] = useState(note?.tag || 'misc');
+  const [customMode, setCustomMode] = useState(false);
+  const [customTag, setCustomTag] = useState('');
 
   const handleSave = () => {
     if (!content.trim()) return;
-    onSave({ content, color, tag: tag || null });
+    const finalTag = customMode ? (customTag.trim() || 'misc') : (tag || 'misc');
+    onSave({ content, color, tag: finalTag });
   };
 
   return (
@@ -75,21 +78,56 @@ export default function NoteEditor({ note, onSave, onCancel }) {
         ))}
       </div>
 
-      <select
-        value={tag}
-        onChange={(e) => setTag(e.target.value)}
-        style={{
-          padding: '6px 8px',
-          borderRadius: 'var(--radius-sm)',
-          border: '1px solid var(--sep)',
-          fontSize: '12px',
-          fontFamily: 'inherit',
-        }}
-      >
-        {TAGS.map((t) => (
-          <option key={t.value} value={t.value}>{t.label}</option>
-        ))}
-      </select>
+      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+        {customMode ? (
+          <input
+            value={customTag}
+            onChange={(e) => setCustomTag(e.target.value)}
+            placeholder="Your own tag…"
+            autoFocus
+            style={{
+              flex: 1,
+              padding: '6px 8px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--sep)',
+              fontSize: '12px',
+              fontFamily: 'inherit',
+              outline: 'none',
+            }}
+          />
+        ) : (
+          <select
+            value={tag}
+            onChange={(e) => setTag(e.target.value)}
+            style={{
+              flex: 1,
+              padding: '6px 8px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--sep)',
+              fontSize: '12px',
+              fontFamily: 'inherit',
+            }}
+          >
+            {TAGS.map((t) => (
+              <option key={t.value} value={t.value}>{t.label}</option>
+            ))}
+          </select>
+        )}
+        <button
+          type="button"
+          onClick={() => { setCustomMode((m) => !m); setCustomTag(''); }}
+          title={customMode ? 'Pick from list' : 'Add your own tag'}
+          style={{
+            width: '30px', height: '30px', flexShrink: 0,
+            borderRadius: 'var(--radius-sm)', border: '1px solid var(--sep)',
+            background: customMode ? 'var(--surface2)' : 'transparent',
+            color: 'var(--label2)', fontSize: '16px', lineHeight: 1,
+            cursor: 'pointer', fontFamily: 'inherit',
+          }}
+        >
+          {customMode ? '×' : '+'}
+        </button>
+      </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
         <button onClick={onCancel} style={secondaryBtn}>Cancel</button>

@@ -41,3 +41,6 @@ class ForgeResponse(BaseModel):
     final_copy: Optional[str] = None
     turns: int
     is_approved: bool = False
+    keywords: list[str] = []
+    score: int = 0
+    turn_id: Optional[str] = None

@@ -21,6 +21,12 @@ export const forgeService = {
     return response.data;
   },
 
+  // ── Get saved result for a session (for reload) ────────────────────
+  getResult: async (sessionId) => {
+    const response = await api.get(`/api/forge/result/${sessionId}`);
+    return response.data;
+  },
+
   // ── Get recent Forge sessions ──────────────────────────────────────
   getSessions: async (brandId) => {
     const response = await api.get(`/api/forge/sessions/${brandId}`);

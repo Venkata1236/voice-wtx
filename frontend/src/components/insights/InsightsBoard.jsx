@@ -33,9 +33,27 @@ export default function InsightsBoard({ brandId }) {
   };
 
   const handleSaveEdit = async (data) => {
-    await insightsService.updateNote(editing.id, data);
-    setEditing(null);
-    loadNotes();
+    try {
+      await insightsService.updateNote(editing.id, data);
+      setEditing(null);
+      loadNotes();
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to save note');
+    }
+  };
+
+  // Distinct tags currently in use (for the editor's chip list)
+  const existingTags = [...new Set(notes.map((n) => n.tag).filter(Boolean))];
+
+  // Delete a tag everywhere — affected notes become Miscellaneous
+  const handleDeleteTag = async (tagValue) => {
+    const affected = notes.filter((n) => n.tag === tagValue);
+    try {
+      await Promise.all(affected.map((n) => insightsService.updateNote(n.id, { tag: 'misc' })));
+      loadNotes();
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to delete tag');
+    }
   };
 
   const handleTogglePin = async (noteId) => {
@@ -92,7 +110,7 @@ export default function InsightsBoard({ brandId }) {
       {/* New note editor */}
       {showNew && (
         <div style={{ marginBottom: '16px' }}>
-          <NoteEditor onSave={handleSaveNew} onCancel={() => setShowNew(false)} />
+          <NoteEditor onSave={handleSaveNew} onCancel={() => setShowNew(false)} existingTags={existingTags} onDeleteTag={handleDeleteTag} />
         </div>
       )}
 
@@ -100,7 +118,7 @@ export default function InsightsBoard({ brandId }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px' }}>
         {notes.map((note) =>
           editing?.id === note.id ? (
-            <NoteEditor key={note.id} note={note} onSave={handleSaveEdit} onCancel={() => setEditing(null)} />
+            <NoteEditor key={note.id} note={note} onSave={handleSaveEdit} onCancel={() => setEditing(null)} existingTags={existingTags} onDeleteTag={handleDeleteTag} />
           ) : (
             <NoteCard
               key={note.id}

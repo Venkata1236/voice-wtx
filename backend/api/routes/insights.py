@@ -76,7 +76,7 @@ async def create_insight(
             "user_id": current_user["id"],
             "content": payload.content,
             "color": payload.color,
-            "tag": payload.tag.value if payload.tag else None,
+            "tag": payload.tag if payload.tag else None,
             "is_pinned": payload.is_pinned,
         })
         .execute()

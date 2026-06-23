@@ -7,6 +7,10 @@ from api.middleware.auth_guard import get_current_user
 from api.middleware.role_guard import require_any
 from api.middleware.rate_limiter import limiter
 from agents.orchestrator import run_forge
+from agents.langgraph.nodes.format_node import parse_copy_and_keywords
+from utils.scorer import score_brand_relevance
+import json
+import uuid
 
 router = APIRouter(prefix="/api/forge", tags=["Forge Mode"])
 
@@ -92,29 +96,44 @@ async def start_forge(
             ),
         )
 
-    # Save the resulting variant if final copy was produced
-    if result["final_copy"]:
+    # Save the resulting variant if final copy was produced — same shape
+    # as Single/Compare so it persists and reloads as a chat turn.
+    turn_id = str(uuid.uuid4())
+    final_copy = result["final_copy"]
+    keywords = []
+    if final_copy:
+        final_copy, keywords = parse_copy_and_keywords(final_copy)
+        relevance = await score_brand_relevance(final_copy, result.get("kb_context", {}))
+        score_val = relevance or (100 if result["is_approved"] else 70)
         supabase_admin.table("copy_variants").insert({
             "session_id": session_id,
             "brand_id": payload.brand_id,
             "model": "forge",
             "format": payload.format,
             "brief": payload.brief,
-            "content": result["final_copy"],
-            "score": 100 if result["is_approved"] else 70,
+            "content": final_copy,
+            "score": score_val,
             "status": "pending",
+            "keywords": json.dumps(keywords),
+            "turn_id": turn_id,
+            "turn_type": "forge",
             "agent_generator": result["generator"],
             "agent_critic": result["critic"],
         }).execute()
+    else:
+        score_val = 0
 
     return ForgeResponse(
         session_id=session_id,
         generator=result["generator"],
         critic=result["critic"],
         debate_history=result["debate_history"],
-        final_copy=result["final_copy"],
+        final_copy=final_copy,
         turns=result["turns"],
         is_approved=result["is_approved"],
+        keywords=keywords,
+        score=score_val,
+        turn_id=turn_id,
     )
 
 
@@ -158,32 +177,50 @@ async def forge_turn(
         )
 
     # Update or insert the resulting variant
-    if result["final_copy"]:
+    final_copy = result["final_copy"]
+    keywords = []
+    score_val = 0
+    turn_id = None
+    if final_copy:
+        final_copy, keywords = parse_copy_and_keywords(final_copy)
+        relevance = await score_brand_relevance(final_copy, result.get("kb_context", {}))
+        score_val = relevance or (100 if result["is_approved"] else 70)
+
         existing = (
             supabase_admin.table("copy_variants")
-            .select("id")
+            .select("id, turn_id")
             .eq("session_id", payload.session_id)
             .eq("model", "forge")
+            .order("created_at", desc=True)
+            .limit(1)
             .execute()
         )
 
         if existing.data:
+            turn_id = existing.data[0].get("turn_id") or str(uuid.uuid4())
             supabase_admin.table("copy_variants").update({
-                "content": result["final_copy"],
-                "score": 100 if result["is_approved"] else 70,
+                "content": final_copy,
+                "score": score_val,
+                "keywords": json.dumps(keywords),
+                "turn_id": turn_id,
+                "turn_type": "forge",
                 "agent_generator": result["generator"],
                 "agent_critic": result["critic"],
             }).eq("id", existing.data[0]["id"]).execute()
         else:
+            turn_id = str(uuid.uuid4())
             supabase_admin.table("copy_variants").insert({
                 "session_id": payload.session_id,
                 "brand_id": payload.brand_id,
                 "model": "forge",
                 "format": "caption",
                 "brief": payload.brief,
-                "content": result["final_copy"],
-                "score": 100 if result["is_approved"] else 70,
+                "content": final_copy,
+                "score": score_val,
                 "status": "pending",
+                "keywords": json.dumps(keywords),
+                "turn_id": turn_id,
+                "turn_type": "forge",
                 "agent_generator": result["generator"],
                 "agent_critic": result["critic"],
             }).execute()
@@ -193,9 +230,12 @@ async def forge_turn(
         generator=result["generator"],
         critic=result["critic"],
         debate_history=result["debate_history"],
-        final_copy=result["final_copy"],
+        final_copy=final_copy,
         turns=result["turns"],
         is_approved=result["is_approved"],
+        keywords=keywords,
+        score=score_val,
+        turn_id=turn_id,
     )
 
 
@@ -252,6 +292,52 @@ async def approve_forge_copy(
     )
 
     return {"message": "Forge copy approved and saved to Knowledge Base"}
+
+
+# ── GET /api/forge/result/{session_id} ────────────────────────────
+@router.get("/result/{session_id}")
+async def get_forge_result(
+    session_id: str,
+    current_user: dict = Depends(require_any),
+):
+    """
+    Returns the saved Forge result for a session so the Forge tab can
+    reload it as a card (same as Single/Compare reloading from the thread).
+    """
+    supabase = get_supabase()
+
+    response = (
+        supabase.table("copy_variants")
+        .select("*")
+        .eq("session_id", session_id)
+        .eq("model", "forge")
+        .order("created_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+
+    if not response.data:
+        return None
+
+    v = response.data[0]
+    keywords = v.get("keywords")
+    if isinstance(keywords, str):
+        try:
+            keywords = json.loads(keywords)
+        except Exception:
+            keywords = []
+
+    return {
+        "session_id": session_id,
+        "content": v.get("content", ""),
+        "keywords": keywords or [],
+        "score": v.get("score", 0),
+        "format": v.get("format", "caption"),
+        "status": v.get("status", "pending"),
+        "generator": v.get("agent_generator"),
+        "critic": v.get("agent_critic"),
+        "brief": v.get("brief", ""),
+    }
 
 
 # ── GET /api/forge/sessions/{brand_id} ────────────────────────────

@@ -341,6 +341,112 @@ async def forge_turn(
     )
 
 
+# ── POST /api/forge/turn-stream (SSE) ──────────────────────────────
+@router.post("/turn-stream")
+@limiter.limit("5/minute")
+async def forge_turn_stream(
+    request: Request,
+    payload: ForgeTurnRequest,
+    current_user: dict = Depends(require_any),
+):
+    """
+    Streaming follow-up round. Same as start-stream but continues an
+    existing session with optional user direction, updating the saved
+    forge variant in place.
+    """
+    await check_forge_enabled()
+
+    supabase_admin = get_supabase_admin()
+    session_id = payload.session_id
+    generator_name = payload.generator.value
+    critic_name = payload.critic.value
+
+    async def event_generator():
+        try:
+            yield f"data: {json.dumps({'type': 'session', 'session_id': session_id})}\n\n"
+
+            team, task, kb_context = await build_forge_team(
+                brand_id=payload.brand_id,
+                generator_name=generator_name,
+                critic_name=critic_name,
+                brief=payload.brief,
+                user_direction=payload.direction,
+            )
+
+            final_copy = None
+            is_approved = False
+            turns = 0
+
+            async for message in team.run_stream(task=task):
+                if isinstance(message, TaskResult):
+                    continue
+                if isinstance(message, TextMessage):
+                    turns += 1
+                    yield f"data: {json.dumps({'type': 'debate_message', 'agent': message.source, 'content': message.content})}\n\n"
+                    if message.source == generator_name:
+                        final_copy = message.content
+                    if message.source == critic_name and "APPROVED" in message.content:
+                        is_approved = True
+
+            keywords = []
+            score_val = 0
+            turn_id = None
+            if final_copy:
+                final_copy, keywords = parse_copy_and_keywords(final_copy)
+                relevance = await score_brand_relevance(final_copy, kb_context)
+                score_val = relevance or (100 if is_approved else 70)
+
+                existing = (
+                    supabase_admin.table("copy_variants")
+                    .select("id, turn_id")
+                    .eq("session_id", session_id)
+                    .eq("model", "forge")
+                    .order("created_at", desc=True)
+                    .limit(1)
+                    .execute()
+                )
+                try:
+                    if existing.data:
+                        turn_id = existing.data[0].get("turn_id") or str(uuid.uuid4())
+                        supabase_admin.table("copy_variants").update({
+                            "content": final_copy,
+                            "score": score_val,
+                            "keywords": json.dumps(keywords),
+                            "turn_id": turn_id,
+                            "turn_type": "forge",
+                            "agent_generator": generator_name,
+                            "agent_critic": critic_name,
+                        }).eq("id", existing.data[0]["id"]).execute()
+                    else:
+                        turn_id = str(uuid.uuid4())
+                        supabase_admin.table("copy_variants").insert({
+                            "session_id": session_id,
+                            "brand_id": payload.brand_id,
+                            "model": "forge",
+                            "format": "caption",
+                            "brief": payload.brief,
+                            "content": final_copy,
+                            "score": score_val,
+                            "status": "pending",
+                            "keywords": json.dumps(keywords),
+                            "turn_id": turn_id,
+                            "turn_type": "forge",
+                            "agent_generator": generator_name,
+                            "agent_critic": critic_name,
+                        }).execute()
+                except Exception as e:
+                    logger.error(f"Failed to save forge turn variant: {e}")
+
+            yield f"data: {json.dumps({'type': 'final', 'session_id': session_id, 'content': final_copy, 'keywords': keywords, 'score': score_val, 'is_approved': is_approved, 'turn_id': turn_id, 'generator': generator_name, 'critic': critic_name, 'turns': turns})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+        except Exception as e:
+            logger.error(f"Forge turn stream failed: {e}")
+            yield f"data: {json.dumps({'type': 'error', 'detail': str(e)})}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
 # ── POST /api/forge/approve/{session_id} ──────────────────────────
 @router.post("/approve/{session_id}")
 async def approve_forge_copy(

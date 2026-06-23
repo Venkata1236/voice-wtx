@@ -8,6 +8,45 @@ from agents.autogen.forge_orchestrator import build_forge_agents
 from kb.kb_builder import build_kb_context, format_kb_for_prompt
 
 
+async def build_forge_team(
+    brand_id: str,
+    generator_name: str,
+    critic_name: str,
+    brief: str,
+    user_direction: str = None,
+    max_turns: int = 6,
+):
+    """
+    Builds the team, opening task, and KB context for a Forge debate.
+    Used by the streaming route so it can iterate team.run_stream itself
+    while keeping kb_context in scope for brand-relevance scoring.
+    """
+    kb_context = await build_kb_context(brand_id)
+    kb_context_str = format_kb_for_prompt(kb_context)
+
+    generator, critic = build_forge_agents(
+        generator_name=generator_name,
+        critic_name=critic_name,
+        kb_context_str=kb_context_str,
+    )
+
+    termination = (
+        TextMentionTermination("APPROVED")
+        | MaxMessageTermination(max_messages=max_turns)
+    )
+
+    team = RoundRobinGroupChat(
+        participants=[generator, critic],
+        termination_condition=termination,
+    )
+
+    task = f"BRIEF:\n{brief}"
+    if user_direction:
+        task += f"\n\nUSER DIRECTION:\n{user_direction}"
+
+    return team, task, kb_context
+
+
 async def run_forge_debate(
     brand_id: str,
     brief: str,

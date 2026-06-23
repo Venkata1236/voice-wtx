@@ -187,12 +187,47 @@ export default function ForgeTab({ brand, activeSessionId, onSessionCreated }) {
             </div>
           )}
 
-          {/* ── Agent debate — collapsible dropdown panel ── */}
+          {/* Final copy as a VariantCard — same border as single/compare */}
+          {finalCopy && (
+            <VariantCard
+              variant={{ model: 'forge', content: finalCopy, keywords, score, format, streaming: false }}
+            />
+          )}
+
+          {/* Agree / Approve actions on the current result */}
+          {finalCopy && !isApproved && !loading && (
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center', marginTop: '10px' }}>
+              {criticApproved && (
+                <span style={{ marginRight: 'auto', fontSize: '11px', color: 'var(--green)', fontWeight: 600 }}>
+                  ✓ Critic approved — review and approve to save
+                </span>
+              )}
+              <button onClick={() => runTurn(null)} disabled={loading} style={pillBtn}>
+                Agree &amp; refine
+              </button>
+              <button
+                onClick={handleApprove}
+                disabled={loading}
+                style={{ ...pillBtn, borderColor: 'rgba(34,197,94,.35)', color: 'var(--green)', background: 'var(--green-bg)' }}
+              >
+                Approve
+              </button>
+            </div>
+          )}
+
+          {isApproved && (
+            <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-md)', background: 'var(--green-bg)', color: 'var(--green)', fontSize: '12px', fontWeight: 600, marginTop: '8px' }}>
+              Copy approved and saved to Knowledge Base
+            </div>
+          )}
+
+          {/* ── Agent debate — collapsible dropdown, BELOW the result so
+                expanding it never pushes the response around ── */}
           {debateHistory.length > 0 && (
             <div style={{
               border: '1px solid var(--sep)',
               borderRadius: 'var(--radius-md)',
-              marginBottom: '12px',
+              marginTop: '12px',
               overflow: 'hidden',
               background: 'var(--surface)',
             }}>
@@ -211,9 +246,7 @@ export default function ForgeTab({ brand, activeSessionId, onSessionCreated }) {
                   transform: (showDebate || loading) ? 'rotate(90deg)' : 'none',
                   transition: 'transform 0.15s',
                 }}>▸</span>
-                {loading
-                  ? 'Agents debating…'
-                  : `Agent debate · ${generator} vs ${critic} · ${debateHistory.filter((m) => m.agent !== 'You').length} turns`}
+                Agent debate
                 {loading && (
                   <span style={{ marginLeft: '6px', animation: 'pulse 1s ease-in-out infinite', color: 'var(--label3)', fontWeight: 400 }}>●</span>
                 )}
@@ -249,40 +282,6 @@ export default function ForgeTab({ brand, activeSessionId, onSessionCreated }) {
                   )}
                 </div>
               )}
-            </div>
-          )}
-
-          {/* Final copy as a VariantCard — same border as single/compare */}
-          {finalCopy && (
-            <VariantCard
-              variant={{ model: 'forge', content: finalCopy, keywords, score, format, streaming: false }}
-            />
-          )}
-
-          {/* Agree / Approve actions on the current result */}
-          {finalCopy && !isApproved && !loading && (
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center', marginTop: '10px' }}>
-              {criticApproved && (
-                <span style={{ marginRight: 'auto', fontSize: '11px', color: 'var(--green)', fontWeight: 600 }}>
-                  ✓ Critic approved — review and approve to save
-                </span>
-              )}
-              <button onClick={() => runTurn(null)} disabled={loading} style={pillBtn}>
-                Agree &amp; refine
-              </button>
-              <button
-                onClick={handleApprove}
-                disabled={loading}
-                style={{ ...pillBtn, borderColor: 'rgba(34,197,94,.35)', color: 'var(--green)', background: 'var(--green-bg)' }}
-              >
-                Approve
-              </button>
-            </div>
-          )}
-
-          {isApproved && (
-            <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-md)', background: 'var(--green-bg)', color: 'var(--green)', fontSize: '12px', fontWeight: 600, marginTop: '8px' }}>
-              Copy approved and saved to Knowledge Base
             </div>
           )}
 

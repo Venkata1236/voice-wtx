@@ -16,14 +16,14 @@ class InsightCreate(BaseModel):
     brand_id: str
     content: str
     color: Optional[str] = "yellow"
-    tag: Optional[NoteTag] = None
+    tag: Optional[str] = None
     is_pinned: Optional[bool] = False
 
 
 class InsightUpdate(BaseModel):
     content: Optional[str] = None
     color: Optional[str] = None
-    tag: Optional[NoteTag] = None
+    tag: Optional[str] = None
     is_pinned: Optional[bool] = None
 
 

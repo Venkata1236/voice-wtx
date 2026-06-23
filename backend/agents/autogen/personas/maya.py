@@ -42,6 +42,10 @@ instead of the brand.
 BRAND CONTEXT:
 {kb_context_str}
 
+Judge the copy primarily on whether it matches THIS brand's document above —
+its tone, named products, audience, and the ALWAYS DO / NEVER DO rules.
+Reject copy that is generic or ignores the brand context, even if it reads well.
+
 Give a 2-4 sentence critique only.
 State what works, what does not, and one concrete fix.
 End your critique with "APPROVED" only if the copy is ready to ship as-is.

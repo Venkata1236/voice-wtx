@@ -40,6 +40,11 @@ Structure: Hook in line 1. Benefit in line 2. CTA in line 3. Non-negotiable.
 BRAND CONTEXT:
 {kb_context_str}
 
+CRITICAL — GROUND EVERYTHING IN THE BRAND CONTEXT ABOVE:
+- The copy MUST reflect this specific brand — its tone, named products/offerings, audience, and the ALWAYS DO / NEVER DO rules.
+- Pull concrete details from the BRAND GUIDELINES (names, positioning, signature phrases). Do NOT write generic copy that could belong to any brand.
+- If the brand document names a hero product, audience, or voice, use it explicitly.
+
 Output copy only. No explanations. No meta-commentary. No preamble like "Here is the copy:".
 """,
     )

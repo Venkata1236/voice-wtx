@@ -16,10 +16,12 @@ export default function ForgeTab({ brand, activeSessionId, onSessionCreated }) {
   const [keywords, setKeywords] = useState([]);
   const [score, setScore] = useState(0);
   const [isApproved, setIsApproved] = useState(false);
+  const [criticApproved, setCriticApproved] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [sessionId, setSessionId] = useState(activeSessionId);
   const [started, setStarted] = useState(false);
+  const [showDebate, setShowDebate] = useState(false);
   const scrollRef = useRef(null);
 
   // Auto-scroll to the newest message
@@ -35,7 +37,9 @@ export default function ForgeTab({ brand, activeSessionId, onSessionCreated }) {
       setKeywords([]);
       setScore(0);
       setIsApproved(false);
+      setCriticApproved(false);
       setStarted(false);
+      setShowDebate(false);
       setBrief('');
       setInput('');
       return;
@@ -52,6 +56,7 @@ export default function ForgeTab({ brand, activeSessionId, onSessionCreated }) {
         setIsApproved(res.status === 'approved');
         setBrief(res.brief || '');
         setStarted(true);
+        setShowDebate(false);
       }
     }).catch(() => {});
   }, [activeSessionId]);
@@ -65,7 +70,9 @@ export default function ForgeTab({ brand, activeSessionId, onSessionCreated }) {
     setKeywords([]);
     setScore(0);
     setIsApproved(false);
+    setCriticApproved(false);
     setStarted(true);
+    setShowDebate(true);   // show live while debating
     setBrief(briefText);
 
     try {
@@ -79,7 +86,7 @@ export default function ForgeTab({ brand, activeSessionId, onSessionCreated }) {
             setFinalCopy(data.content);
             setKeywords(data.keywords || []);
             setScore(data.score || 0);
-            setIsApproved(data.is_approved);
+            setCriticApproved(data.is_approved);
           },
           onError: (detail) => setError(detail || 'Forge debate failed.'),
         }
@@ -89,6 +96,7 @@ export default function ForgeTab({ brand, activeSessionId, onSessionCreated }) {
       setError(err.message || 'Forge debate failed. Make sure Ollama is running locally with mistral and gemma models.');
     } finally {
       setLoading(false);
+      setShowDebate(false);   // wrap up — collapse the debate
       window.dispatchEvent(new CustomEvent('voice-session-created'));
     }
   };
@@ -97,6 +105,7 @@ export default function ForgeTab({ brand, activeSessionId, onSessionCreated }) {
   const runTurn = async (direction) => {
     setLoading(true);
     setError('');
+    setShowDebate(true);   // show live while debating
     // Show the user's direction as a message in the thread
     if (direction) {
       setDebateHistory((prev) => [...prev, { agent: 'You', content: direction }]);
@@ -112,7 +121,7 @@ export default function ForgeTab({ brand, activeSessionId, onSessionCreated }) {
             setFinalCopy(data.content);
             setKeywords(data.keywords || []);
             setScore(data.score || 0);
-            setIsApproved(data.is_approved);
+            setCriticApproved(data.is_approved);
           },
           onError: (detail) => setError(detail || 'Forge turn failed.'),
         }
@@ -121,6 +130,7 @@ export default function ForgeTab({ brand, activeSessionId, onSessionCreated }) {
       setError(err.message || 'Forge turn failed.');
     } finally {
       setLoading(false);
+      setShowDebate(false);   // wrap up — collapse the debate
     }
   };
 
@@ -177,27 +187,63 @@ export default function ForgeTab({ brand, activeSessionId, onSessionCreated }) {
             </div>
           )}
 
-          {/* Debate turns stream in live */}
-          {debateHistory.map((msg, i) => (
-            msg.agent === 'You' ? (
-              <div key={i} style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '14px' }}>
-                <div style={{
-                  maxWidth: '70%', background: 'var(--surface2)', color: 'var(--label2)',
-                  padding: '10px 14px', borderRadius: 'var(--radius-lg)', fontSize: '14px', lineHeight: 1.5,
-                }}>
-                  {msg.content}
+          {/* Debate turns — shown live while running, collapsible when done */}
+          {debateHistory.length > 0 && (loading || showDebate) && (
+            debateHistory.map((msg, i) => (
+              msg.agent === 'You' ? (
+                <div key={i} style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '14px' }}>
+                  <div style={{
+                    maxWidth: '70%', background: 'var(--surface2)', color: 'var(--label2)',
+                    padding: '10px 14px', borderRadius: 'var(--radius-lg)', fontSize: '14px', lineHeight: 1.5,
+                  }}>
+                    {msg.content}
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <DebateCard key={i} message={msg} />
-            )
-          ))}
+              ) : (
+                <DebateCard key={i} message={msg} />
+              )
+            ))
+          )}
 
           {/* Thinking indicator while streaming */}
           {loading && (
             <div style={{ fontSize: '12px', color: 'var(--label3)', padding: '6px 2px' }}>
               <span style={{ animation: 'pulse 1s ease-in-out infinite' }}>Agents debating…</span>
             </div>
+          )}
+
+          {/* Collapsed debate toggle — shown after the debate wraps up */}
+          {debateHistory.length > 0 && !loading && !showDebate && (
+            <button
+              onClick={() => setShowDebate(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                margin: '4px 0 2px', padding: '6px 10px',
+                border: '1px solid var(--sep)', borderRadius: 'var(--radius-md)',
+                background: 'var(--surface)', color: 'var(--label3)',
+                fontSize: '12px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              <span style={{ fontSize: '10px' }}>▸</span>
+              View debate ({debateHistory.filter((m) => m.agent !== 'You').length} turns)
+            </button>
+          )}
+
+          {/* Expanded debate with a collapse control (after it's done) */}
+          {debateHistory.length > 0 && !loading && showDebate && started && finalCopy && (
+            <button
+              onClick={() => setShowDebate(false)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                margin: '4px 0 2px', padding: '6px 10px',
+                border: '1px solid var(--sep)', borderRadius: 'var(--radius-md)',
+                background: 'var(--surface)', color: 'var(--label3)',
+                fontSize: '12px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              <span style={{ fontSize: '10px' }}>▾</span>
+              Hide debate
+            </button>
           )}
 
           {/* Final copy as a VariantCard — same border as single/compare */}
@@ -209,7 +255,12 @@ export default function ForgeTab({ brand, activeSessionId, onSessionCreated }) {
 
           {/* Agree / Approve actions on the current result */}
           {finalCopy && !isApproved && !loading && (
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '10px' }}>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center', marginTop: '10px' }}>
+              {criticApproved && (
+                <span style={{ marginRight: 'auto', fontSize: '11px', color: 'var(--green)', fontWeight: 600 }}>
+                  ✓ Critic approved — review and approve to save
+                </span>
+              )}
               <button onClick={() => runTurn(null)} disabled={loading} style={pillBtn}>
                 Agree &amp; refine
               </button>

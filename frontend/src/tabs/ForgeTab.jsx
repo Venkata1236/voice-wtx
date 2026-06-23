@@ -4,6 +4,7 @@ import FormatChips from '../components/brief/FormatChips';
 import AgentSelector from '../components/forge/AgentSelector';
 import DebateCard from '../components/forge/DebateCard';
 import DirectionInput from '../components/forge/DirectionInput';
+import VariantCard from '../components/variants/VariantCard';
 
 export default function ForgeTab({ brand, activeSessionId, onSessionCreated }) {
   const [format, setFormat] = useState('caption');
@@ -12,6 +13,8 @@ export default function ForgeTab({ brand, activeSessionId, onSessionCreated }) {
   const [critic, setCritic] = useState('Maya');
   const [debateHistory, setDebateHistory] = useState([]);
   const [finalCopy, setFinalCopy] = useState(null);
+  const [keywords, setKeywords] = useState([]);
+  const [score, setScore] = useState(0);
   const [isApproved, setIsApproved] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -23,10 +26,27 @@ export default function ForgeTab({ brand, activeSessionId, onSessionCreated }) {
       setSessionId(null);
       setDebateHistory([]);
       setFinalCopy(null);
+      setKeywords([]);
+      setScore(0);
       setIsApproved(false);
       setStarted(false);
       setBriefText('');
+      return;
     }
+    // Reopening a forge chat — load its saved result as a card.
+    setSessionId(activeSessionId);
+    setDebateHistory([]);
+    forgeService.getResult(activeSessionId).then((res) => {
+      if (res && res.content) {
+        setFinalCopy(res.content);
+        setKeywords(res.keywords || []);
+        setScore(res.score || 0);
+        setFormat(res.format || 'caption');
+        setIsApproved(res.status === 'approved');
+        setBriefText(res.brief || '');
+        setStarted(true);
+      }
+    }).catch(() => {});
   }, [activeSessionId]);
 
   const handleStart = async () => {
@@ -46,6 +66,8 @@ export default function ForgeTab({ brand, activeSessionId, onSessionCreated }) {
 
       setDebateHistory(result.debate_history);
       setFinalCopy(result.final_copy);
+      setKeywords(result.keywords || []);
+      setScore(result.score || 0);
       setIsApproved(result.is_approved);
       setSessionId(result.session_id);
       setStarted(true);
@@ -81,6 +103,8 @@ export default function ForgeTab({ brand, activeSessionId, onSessionCreated }) {
 
       setDebateHistory([...debateHistory, ...result.debate_history]);
       setFinalCopy(result.final_copy);
+      setKeywords(result.keywords || []);
+      setScore(result.score || 0);
       setIsApproved(result.is_approved);
     } catch (err) {
       setError(err.response?.data?.detail || 'Forge turn failed.');
@@ -115,6 +139,19 @@ export default function ForgeTab({ brand, activeSessionId, onSessionCreated }) {
         {debateHistory.map((msg, i) => (
           <DebateCard key={i} message={msg} />
         ))}
+
+        {finalCopy && (
+          <VariantCard
+            variant={{
+              model: 'forge',
+              content: finalCopy,
+              keywords,
+              score,
+              format,
+              streaming: false,
+            }}
+          />
+        )}
 
         {finalCopy && !isApproved && (
           <DirectionInput

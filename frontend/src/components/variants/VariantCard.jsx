@@ -5,6 +5,7 @@ const MODEL_LABELS = {
   'sarvam-30b': 'Sarvam',
   'gpt-4o-mini': 'GPT',
   'gemini-1.5-flash': 'Gemini',
+  'forge': 'Forge',
 };
 
 export default function VariantCard({ variant, onRefine }) {

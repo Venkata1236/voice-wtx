@@ -187,63 +187,69 @@ export default function ForgeTab({ brand, activeSessionId, onSessionCreated }) {
             </div>
           )}
 
-          {/* Debate turns — shown live while running, collapsible when done */}
-          {debateHistory.length > 0 && (loading || showDebate) && (
-            debateHistory.map((msg, i) => (
-              msg.agent === 'You' ? (
-                <div key={i} style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '14px' }}>
-                  <div style={{
-                    maxWidth: '70%', background: 'var(--surface2)', color: 'var(--label2)',
-                    padding: '10px 14px', borderRadius: 'var(--radius-lg)', fontSize: '14px', lineHeight: 1.5,
-                  }}>
-                    {msg.content}
-                  </div>
+          {/* ── Agent debate — collapsible dropdown panel ── */}
+          {debateHistory.length > 0 && (
+            <div style={{
+              border: '1px solid var(--sep)',
+              borderRadius: 'var(--radius-md)',
+              marginBottom: '12px',
+              overflow: 'hidden',
+              background: 'var(--surface)',
+            }}>
+              {/* Header row — click to expand/collapse */}
+              <button
+                onClick={() => setShowDebate((v) => !v)}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', gap: '8px',
+                  padding: '10px 12px', border: 'none', background: 'transparent',
+                  color: 'var(--label2)', fontSize: '13px', fontWeight: 600,
+                  cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+                }}
+              >
+                <span style={{
+                  fontSize: '10px', color: 'var(--label3)',
+                  transform: (showDebate || loading) ? 'rotate(90deg)' : 'none',
+                  transition: 'transform 0.15s',
+                }}>▸</span>
+                {loading
+                  ? 'Agents debating…'
+                  : `Agent debate · ${generator} vs ${critic} · ${debateHistory.filter((m) => m.agent !== 'You').length} turns`}
+                {loading && (
+                  <span style={{ marginLeft: '6px', animation: 'pulse 1s ease-in-out infinite', color: 'var(--label3)', fontWeight: 400 }}>●</span>
+                )}
+              </button>
+
+              {/* Body — the debate messages, nested inside the panel */}
+              {(showDebate || loading) && (
+                <div style={{
+                  borderTop: '1px solid var(--sep)',
+                  padding: '12px',
+                  display: 'flex', flexDirection: 'column', gap: '10px',
+                  maxHeight: '420px', overflowY: 'auto',
+                  background: '#fff',
+                }}>
+                  {debateHistory.map((msg, i) => (
+                    msg.agent === 'You' ? (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <div style={{
+                          maxWidth: '70%', background: 'var(--surface2)', color: 'var(--label2)',
+                          padding: '8px 12px', borderRadius: 'var(--radius-md)', fontSize: '13px', lineHeight: 1.5,
+                        }}>
+                          {msg.content}
+                        </div>
+                      </div>
+                    ) : (
+                      <DebateCard key={i} message={msg} />
+                    )
+                  ))}
+                  {loading && (
+                    <div style={{ fontSize: '12px', color: 'var(--label3)', padding: '2px' }}>
+                      <span style={{ animation: 'pulse 1s ease-in-out infinite' }}>thinking…</span>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <DebateCard key={i} message={msg} />
-              )
-            ))
-          )}
-
-          {/* Thinking indicator while streaming */}
-          {loading && (
-            <div style={{ fontSize: '12px', color: 'var(--label3)', padding: '6px 2px' }}>
-              <span style={{ animation: 'pulse 1s ease-in-out infinite' }}>Agents debating…</span>
+              )}
             </div>
-          )}
-
-          {/* Collapsed debate toggle — shown after the debate wraps up */}
-          {debateHistory.length > 0 && !loading && !showDebate && (
-            <button
-              onClick={() => setShowDebate(true)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '6px',
-                margin: '4px 0 2px', padding: '6px 10px',
-                border: '1px solid var(--sep)', borderRadius: 'var(--radius-md)',
-                background: 'var(--surface)', color: 'var(--label3)',
-                fontSize: '12px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
-              }}
-            >
-              <span style={{ fontSize: '10px' }}>▸</span>
-              View debate ({debateHistory.filter((m) => m.agent !== 'You').length} turns)
-            </button>
-          )}
-
-          {/* Expanded debate with a collapse control (after it's done) */}
-          {debateHistory.length > 0 && !loading && showDebate && started && finalCopy && (
-            <button
-              onClick={() => setShowDebate(false)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '6px',
-                margin: '4px 0 2px', padding: '6px 10px',
-                border: '1px solid var(--sep)', borderRadius: 'var(--radius-md)',
-                background: 'var(--surface)', color: 'var(--label3)',
-                fontSize: '12px', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
-              }}
-            >
-              <span style={{ fontSize: '10px' }}>▾</span>
-              Hide debate
-            </button>
           )}
 
           {/* Final copy as a VariantCard — same border as single/compare */}

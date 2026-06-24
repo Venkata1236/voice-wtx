@@ -236,3 +236,61 @@ async def get_insights_count(
         "max": MAX_NOTES_PER_BRAND,
         "status": bar_status,
     }
+
+# ── Per-user custom tags (follow the user across devices) ─────────
+
+@router.get("/{brand_id}/tags")
+async def get_user_tags(
+    brand_id: str,
+    current_user: dict = Depends(require_any),
+):
+    """Return the current user's custom tags for this brand."""
+    supabase_admin = get_supabase_admin()
+    response = (
+        supabase_admin.table("user_tags")
+        .select("tag")
+        .eq("user_id", current_user["id"])
+        .eq("brand_id", brand_id)
+        .order("created_at")
+        .execute()
+    )
+    return [row["tag"] for row in (response.data or [])]
+
+
+@router.post("/{brand_id}/tags")
+async def add_user_tag(
+    brand_id: str,
+    payload: dict,
+    current_user: dict = Depends(require_any),
+):
+    """Add a custom tag for the current user + brand (idempotent)."""
+    tag = (payload.get("tag") or "").strip()
+    if not tag:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tag is required")
+
+    supabase_admin = get_supabase_admin()
+    try:
+        supabase_admin.table("user_tags").insert({
+            "user_id": current_user["id"],
+            "brand_id": brand_id,
+            "tag": tag,
+        }).execute()
+    except Exception:
+        # Unique violation (tag already exists) — ignore, it's idempotent
+        pass
+
+    return {"tag": tag}
+
+
+@router.delete("/{brand_id}/tags/{tag}")
+async def delete_user_tag(
+    brand_id: str,
+    tag: str,
+    current_user: dict = Depends(require_any),
+):
+    """Remove a custom tag for the current user + brand."""
+    supabase_admin = get_supabase_admin()
+    supabase_admin.table("user_tags").delete().eq(
+        "user_id", current_user["id"]
+    ).eq("brand_id", brand_id).eq("tag", tag).execute()
+    return {"deleted": tag}

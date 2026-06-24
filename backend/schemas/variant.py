@@ -38,6 +38,7 @@ class VariantResponse(BaseModel):
     keywords: Optional[list] = []
     # ── Image attachment ──────────────────────────────────────────────
     image_url: Optional[str] = None
+    image_urls: Optional[list] = None
 
     # ── Turn tracking — groups variants into conversation turns ────────
     turn_id: Optional[str] = None

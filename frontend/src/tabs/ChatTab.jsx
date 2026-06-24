@@ -543,7 +543,7 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
 
         {/* Image preview above input bar */}
         {imagePreview && (
-          <div style={{ position: 'relative', display: 'inline-block', marginTop: '6px', marginBottom: '8px' }}>
+          <div style={{ position: 'relative', alignSelf: 'flex-start', width: '140px', marginTop: '6px', marginBottom: '8px' }}>
             <img
               src={imagePreview}
               alt="Attached"

@@ -26,10 +26,16 @@ export default function NoteEditor({ note, onSave, onCancel, customTags = [], on
   const [tag, setTag] = useState(note?.tag || 'misc');
   const [adding, setAdding] = useState(false);
   const [newTag, setNewTag] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = () => {
-    if (!content.trim()) return;
-    onSave({ content, color, tag: tag || 'misc' });
+  const handleSave = async () => {
+    if (!content.trim() || saving) return;
+    setSaving(true);
+    try {
+      await onSave({ content, color, tag: tag || 'misc' });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const addNewTag = () => {
@@ -132,7 +138,7 @@ export default function NoteEditor({ note, onSave, onCancel, customTags = [], on
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
         <button onClick={onCancel} style={secondaryBtn}>Cancel</button>
-        <button onClick={handleSave} style={primaryBtn}>Save</button>
+        <button onClick={handleSave} disabled={saving} style={{ ...primaryBtn, opacity: saving ? 0.6 : 1, cursor: saving ? 'default' : 'pointer' }}>{saving ? 'Saving…' : 'Save'}</button>
       </div>
     </div>
   );

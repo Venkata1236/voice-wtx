@@ -7,6 +7,7 @@ import FormatChips from '../components/brief/FormatChips';
 import ModelSelector from '../components/compare/ModelSelector';
 import MicButton from '../components/common/MicButton';
 import ImageAttachButton from '../components/common/ImageAttachButton';
+import { imageService } from '../services/imageService';
 import ChatTurn from '../components/chat/ChatTurn';
 
 export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode = 'single' }) {
@@ -103,6 +104,39 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
     setImageUrl(url);
     setImagePreview(preview);
   };
+
+  // Shared image upload used by the + button, paste, and drag-and-drop
+  const [imageUploading, setImageUploading] = useState(false);
+  const uploadImageFile = async (file) => {
+    if (!file || !file.type?.startsWith('image/') || loading || imageUploading) return;
+    const preview = URL.createObjectURL(file);
+    setImageUploading(true);
+    try {
+      const { url } = await imageService.upload(file);
+      handleImageUploaded(url, preview);
+    } catch (err) {
+      console.error('Image upload failed:', err);
+      alert(err.response?.data?.detail || 'Image upload failed. Please try again.');
+    } finally {
+      setImageUploading(false);
+    }
+  };
+
+  const handlePaste = (e) => {
+    const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith('image/'));
+    if (item) {
+      e.preventDefault();
+      uploadImageFile(item.getAsFile());
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = [...(e.dataTransfer?.files || [])].find((f) => f.type.startsWith('image/'));
+    if (file) uploadImageFile(file);
+  };
+  const [dragOver, setDragOver] = useState(false);
 
   const handleRemoveImage = () => {
     setImageUrl(null);
@@ -547,12 +581,15 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
         )}
 
         <div
+          onDrop={handleDrop}
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
           style={{
             display: 'flex',
             flexDirection: 'column',
-            border: '1px solid var(--sep)',
+            border: dragOver ? '1px dashed var(--accent)' : '1px solid var(--sep)',
             borderRadius: 'var(--radius-lg)',
-            background: '#fff',
+            background: dragOver ? 'var(--surface)' : '#fff',
             boxShadow: 'var(--shadow-sm)',
             overflow: 'hidden',
           }}
@@ -560,6 +597,7 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
           <textarea
             value={briefText}
             onChange={(e) => setBriefText(e.target.value)}
+            onPaste={handlePaste}
             placeholder={
               refineTarget
                 ? 'Describe the change (e.g. make it funnier, shorter, more Tenglish)'

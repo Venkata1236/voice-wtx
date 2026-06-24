@@ -543,7 +543,7 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
 
         {/* Image preview above input bar */}
         {imagePreview && (
-          <div style={{ position: 'relative', display: 'inline-block', marginBottom: '8px' }}>
+          <div style={{ position: 'relative', display: 'inline-block', marginTop: '6px', marginBottom: '8px' }}>
             <img
               src={imagePreview}
               alt="Attached"
@@ -561,21 +561,22 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
               title="Remove image"
               style={{
                 position: 'absolute',
-                top: '8px',
-                right: '8px',
-                width: '24px',
-                height: '24px',
+                top: '-7px',
+                right: '-7px',
+                width: '22px',
+                height: '22px',
                 borderRadius: '50%',
-                border: 'none',
-                background: 'rgba(0,0,0,0.6)',
-                color: '#fff',
-                fontSize: '15px',
+                border: '1px solid var(--sep)',
+                background: '#fff',
+                color: '#1E1E2A',
+                fontSize: '14px',
+                fontWeight: 600,
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 lineHeight: 1,
-                backdropFilter: 'blur(2px)',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.18)',
               }}
             >
               ×

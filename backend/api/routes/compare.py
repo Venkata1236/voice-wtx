@@ -17,7 +17,7 @@ from kb.kb_builder import build_kb_context, format_kb_for_prompt
 from agents.langgraph.nodes.format_node import parse_copy_and_keywords
 from utils.titler import generate_session_title
 from utils.length_guide import build_length_instruction
-from utils.vision import extract_visual_context
+from utils.vision import extract_visual_context, extract_visual_context_multi
 from utils.scorer import score_brand_relevance
 import json as json_lib
 import uuid
@@ -229,8 +229,10 @@ async def compare_generate_stream(
 
         # ── Vision: start extraction in parallel — don't block the stream ──
         effective_prompt = user_prompt
-        if getattr(payload, 'image_url', None):
-            vision_task = asyncio.create_task(extract_visual_context(payload.image_url))
+        if getattr(payload, 'image_urls', None) or getattr(payload, 'image_url', None):
+            _urls = getattr(payload, 'image_urls', None) or [getattr(payload, 'image_url', None)]
+            _urls = [u for u in _urls if u]
+            vision_task = asyncio.create_task(extract_visual_context_multi(_urls))
             yield f"data: {json_lib.dumps({'type': 'vision_reading'})}\n\n"
             visual_context = await vision_task
             if visual_context:
@@ -292,7 +294,7 @@ async def compare_generate_stream(
                         "keywords": json_lib.dumps(keywords),
                         "turn_id": turn_id,
                         "turn_type": "compare",
-                        "image_url": getattr(payload, "image_url", None),
+                        "image_url": (getattr(payload, "image_urls", None) or [getattr(payload, "image_url", None)])[0] if (getattr(payload, "image_urls", None) or getattr(payload, "image_url", None)) else None,
                     })
                     .execute()
                 )

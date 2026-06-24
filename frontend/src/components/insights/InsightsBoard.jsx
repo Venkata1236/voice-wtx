@@ -12,15 +12,19 @@ export default function InsightsBoard({ brandId }) {
   const [showNew, setShowNew] = useState(false);
   const [customTags, setCustomTags] = useState([]); // user-created tags, persisted per brand
 
-  const storageKey = `voice_custom_tags_${brandId}`;
-
   useEffect(() => {
     loadNotes();
-    // Load persisted custom tags for this brand
-    let stored = [];
-    try { stored = JSON.parse(localStorage.getItem(`voice_custom_tags_${brandId}`) || '[]'); } catch { stored = []; }
-    setCustomTags(Array.isArray(stored) ? stored : []);
+    loadTags();
   }, [brandId]);
+
+  const loadTags = async () => {
+    try {
+      const tags = await insightsService.getTags(brandId);
+      setCustomTags(Array.isArray(tags) ? tags : []);
+    } catch {
+      setCustomTags([]);
+    }
+  };
 
   const loadNotes = async () => {
     const [notesData, countData] = await Promise.all([
@@ -31,21 +35,21 @@ export default function InsightsBoard({ brandId }) {
     setCountInfo(countData);
   };
 
-  const persistCustom = (list) => {
-    setCustomTags(list);
-    try { localStorage.setItem(storageKey, JSON.stringify(list)); } catch { /* ignore */ }
-  };
-
-  // All custom tags = persisted list + any found on existing notes (deduped)
+  // All custom tags = server list + any found on existing notes (deduped)
   const noteCustomTags = notes
     .map((n) => n.tag)
     .filter((t) => t && !PREDEFINED_VALUES.includes(t));
   const allCustomTags = [...new Set([...customTags, ...noteCustomTags])];
 
-  const handleAddTag = (t) => {
+  const handleAddTag = async (t) => {
     const tag = (t || '').trim();
     if (!tag || PREDEFINED_VALUES.includes(tag) || allCustomTags.includes(tag)) return;
-    persistCustom([...customTags, tag]);
+    setCustomTags((prev) => [...prev, tag]);   // optimistic
+    try {
+      await insightsService.addTag(brandId, tag);
+    } catch {
+      loadTags();   // revert to server truth on failure
+    }
   };
 
   const handleSaveNew = async (data) => {
@@ -68,16 +72,18 @@ export default function InsightsBoard({ brandId }) {
     }
   };
 
-  // Delete a tag everywhere — remove from persisted list + revert affected notes to misc
+  // Delete a tag everywhere — remove from the user's tag list + revert affected notes to misc
   const handleDeleteTag = async (tagValue) => {
-    persistCustom(customTags.filter((t) => t !== tagValue));
-    const affected = notes.filter((n) => n.tag === tagValue);
+    setCustomTags((prev) => prev.filter((t) => t !== tagValue));   // optimistic
     try {
+      await insightsService.deleteTag(brandId, tagValue);
+      const affected = notes.filter((n) => n.tag === tagValue);
       if (affected.length) {
         await Promise.all(affected.map((n) => insightsService.updateNote(n.id, { tag: 'misc' })));
         loadNotes();
       }
     } catch (err) {
+      loadTags();
       alert(err.response?.data?.detail || 'Failed to delete tag');
     }
   };

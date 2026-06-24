@@ -295,6 +295,7 @@ async def compare_generate_stream(
                         "turn_id": turn_id,
                         "turn_type": "compare",
                         "image_url": (getattr(payload, "image_urls", None) or [getattr(payload, "image_url", None)])[0] if (getattr(payload, "image_urls", None) or getattr(payload, "image_url", None)) else None,
+                        "image_urls": (getattr(payload, "image_urls", None) or ([getattr(payload, "image_url", None)] if getattr(payload, "image_url", None) else [])),
                     })
                     .execute()
                 )

@@ -143,12 +143,13 @@ async def upload_document(request: Request,
     allowed_types = [
         "application/pdf",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "text/html",
     ]
 
     if file.content_type not in allowed_types:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only PDF and DOCX files are supported",
+            detail="Only PDF, DOCX, and HTML files are supported",
         )
 
     # Save uploaded file temporarily to disk for parsing

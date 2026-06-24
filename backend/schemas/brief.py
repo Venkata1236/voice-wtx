@@ -55,9 +55,10 @@ class BriefPayload(BaseModel):
     refine_from: Optional[str] = None
 
     # ── Image attachment ───────────────────────────────────────────
-    # Public Supabase Storage URL of the attached image (optional).
-    # If provided, the vision model extracts context from it first.
-    image_url: Optional[str] = None
+    # Public Supabase Storage URL(s) of attached image(s) (optional).
+    # If provided, the vision model extracts context from them first.
+    image_url: Optional[str] = None          # single (back-compat)
+    image_urls: Optional[list[str]] = None   # up to 5 images
 
     # ── Turn tracking ──────────────────────────────────────────────
     # Frontend generates one turn_id per send so all variants in that

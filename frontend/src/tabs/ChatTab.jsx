@@ -543,36 +543,39 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
 
         {/* Image preview above input bar */}
         {imagePreview && (
-          <div style={{ position: 'relative', display: 'inline-block', marginBottom: '6px' }}>
+          <div style={{ position: 'relative', display: 'inline-block', marginBottom: '8px' }}>
             <img
               src={imagePreview}
               alt="Attached"
               style={{
-                height: '72px',
-                width: 'auto',
-                borderRadius: '8px',
+                width: '140px',
+                height: '140px',
+                borderRadius: '14px',
                 border: '1px solid var(--sep)',
                 objectFit: 'cover',
+                display: 'block',
               }}
             />
             <button
               onClick={handleRemoveImage}
+              title="Remove image"
               style={{
                 position: 'absolute',
-                top: '-6px',
-                right: '-6px',
-                width: '18px',
-                height: '18px',
+                top: '8px',
+                right: '8px',
+                width: '24px',
+                height: '24px',
                 borderRadius: '50%',
                 border: 'none',
-                background: '#1E1E2A',
+                background: 'rgba(0,0,0,0.6)',
                 color: '#fff',
-                fontSize: '10px',
+                fontSize: '15px',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 lineHeight: 1,
+                backdropFilter: 'blur(2px)',
               }}
             >
               ×

@@ -84,7 +84,7 @@ export default function DocumentUpload({ brandId, docType, label, document, onUp
       <input
         ref={fileInputRef}
         type="file"
-        accept=".pdf,.docx"
+        accept=".pdf,.docx,.html,.htm"
         onChange={handleFileSelect}
         style={{ display: 'none' }}
       />

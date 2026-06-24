@@ -13,7 +13,7 @@ from models.router import stream_from_model
 from kb.kb_builder import build_kb_context, format_kb_for_prompt
 from utils.titler import generate_session_title
 from utils.length_guide import build_length_instruction
-from utils.vision import extract_visual_context
+from utils.vision import extract_visual_context, extract_visual_context_multi
 from utils.scorer import score_brand_relevance
 import json
 import uuid
@@ -202,9 +202,11 @@ async def generate_copy_stream(
                 "Do NOT return the original copy unchanged. Return only the revised copy."
             )
         # ── Vision: start extraction in parallel — don't block the stream ──
-        elif getattr(payload, 'image_url', None):
+        elif getattr(payload, 'image_urls', None) or getattr(payload, 'image_url', None):
             import asyncio as _asyncio
-            vision_task = _asyncio.create_task(extract_visual_context(payload.image_url))
+            _urls = getattr(payload, 'image_urls', None) or [getattr(payload, 'image_url', None)]
+            _urls = [u for u in _urls if u]
+            vision_task = _asyncio.create_task(extract_visual_context_multi(_urls))
             yield f"data: {json.dumps({'type': 'vision_reading'})}\n\n"
             visual_context = await vision_task
             if visual_context:
@@ -261,7 +263,7 @@ async def generate_copy_stream(
                         "keywords": json.dumps(keywords),
                         "turn_id": turn_id,
                         "turn_type": "single",
-                        "image_url": getattr(payload, "image_url", None),
+                        "image_url": (getattr(payload, "image_urls", None) or [getattr(payload, "image_url", None)])[0] if (getattr(payload, "image_urls", None) or getattr(payload, "image_url", None)) else None,
                     })
                     .execute()
                 )

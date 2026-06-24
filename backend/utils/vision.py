@@ -43,7 +43,7 @@ async def extract_visual_context(image_url: str) -> str:
         b64_data, mime_type = await _fetch_as_base64(image_url)
 
         model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash",
+            model_name="gemini-2.5-flash",
             system_instruction=VISION_SYSTEM_PROMPT,
             generation_config=genai.types.GenerationConfig(
                 max_output_tokens=300,
@@ -71,3 +71,26 @@ async def extract_visual_context(image_url: str) -> str:
         logger.error(f"Vision extraction failed: {e}")
         # Return empty string — copy generation still works, just without image context
         return ""
+
+
+async def extract_visual_context_multi(image_urls: list[str]) -> str:
+    """
+    Extract visual context from multiple images (up to a sensible cap) and
+    combine into one brief. Each image's context is labelled so the copy
+    model can tell them apart.
+    """
+    if not image_urls:
+        return ""
+
+    urls = [u for u in image_urls if u][:5]   # cap at 5
+    if not urls:
+        return ""
+    if len(urls) == 1:
+        return await extract_visual_context(urls[0])
+
+    results = await asyncio.gather(*[extract_visual_context(u) for u in urls])
+    parts = []
+    for i, ctx in enumerate(results, 1):
+        if ctx:
+            parts.append(f"Image {i}: {ctx}")
+    return "\n\n".join(parts)

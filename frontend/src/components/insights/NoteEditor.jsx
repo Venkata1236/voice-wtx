@@ -20,20 +20,12 @@ const COLOR_MAP = {
   purple: '#F3E5F5',
 };
 
-export default function NoteEditor({ note, onSave, onCancel, existingTags = [], onDeleteTag }) {
+export default function NoteEditor({ note, onSave, onCancel, customTags = [], onAddTag, onDeleteTag }) {
   const [content, setContent] = useState(note?.content || '');
   const [color, setColor] = useState(note?.color || 'yellow');
   const [tag, setTag] = useState(note?.tag || 'misc');
   const [adding, setAdding] = useState(false);
   const [newTag, setNewTag] = useState('');
-
-  const predefinedValues = PREDEFINED.map((t) => t.value);
-  // Custom tags = those used by existing notes + the one currently selected (if new)
-  const customTags = [
-    ...new Set(
-      [...existingTags, tag].filter((t) => t && !predefinedValues.includes(t))
-    ),
-  ];
 
   const handleSave = () => {
     if (!content.trim()) return;
@@ -43,7 +35,8 @@ export default function NoteEditor({ note, onSave, onCancel, existingTags = [], 
   const addNewTag = () => {
     const t = newTag.trim();
     if (!t) return;
-    setTag(t);
+    onAddTag?.(t);   // persist it at the board level (survives selection + refresh)
+    setTag(t);       // select it
     setAdding(false);
     setNewTag('');
   };
@@ -96,7 +89,7 @@ export default function NoteEditor({ note, onSave, onCancel, existingTags = [], 
                   title="Delete this tag everywhere"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (confirm(`Delete the "${t}" tag from all notes? They'll become Miscellaneous.`)) {
+                    if (confirm(`Delete the "${t}" tag? Notes using it become Miscellaneous.`)) {
                       if (tag === t) setTag('misc');
                       onDeleteTag(t);
                     }

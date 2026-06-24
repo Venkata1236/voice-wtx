@@ -21,20 +21,36 @@ export default function ChatTurn({ turn, onApprove, onReject, onRefine }) {
     <div style={{ marginBottom: '28px' }}>
       {/* User message — image (if any) + brief text */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
-        {/* Image — show preview blob during streaming, or stored URL on reload */}
-        {(turn.image_preview || turn.image_url) && (
-          <img
-            src={turn.image_preview || turn.image_url}
-            alt="Attached"
-            style={{
-              maxWidth: '260px',
-              maxHeight: '180px',
-              borderRadius: '12px',
-              objectFit: 'cover',
-              border: '1px solid var(--sep)',
-            }}
-          />
-        )}
+        {/* Images — previews during streaming, or stored URLs on reload */}
+        {(() => {
+          const imgs =
+            (turn.image_previews && turn.image_previews.length
+              ? turn.image_previews
+              : turn.image_urls && turn.image_urls.length
+              ? turn.image_urls
+              : (turn.image_preview || turn.image_url)
+              ? [turn.image_preview || turn.image_url]
+              : []);
+          if (!imgs.length) return null;
+          return (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'flex-end' }}>
+              {imgs.map((src, i) => (
+                <img
+                  key={i}
+                  src={src}
+                  alt={`Attached ${i + 1}`}
+                  style={{
+                    maxWidth: '180px',
+                    maxHeight: '180px',
+                    borderRadius: '12px',
+                    objectFit: 'cover',
+                    border: '1px solid var(--sep)',
+                  }}
+                />
+              ))}
+            </div>
+          );
+        })()}
         {turn.brief && (
           <div
             style={{

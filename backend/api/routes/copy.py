@@ -264,6 +264,7 @@ async def generate_copy_stream(
                         "turn_id": turn_id,
                         "turn_type": "single",
                         "image_url": (getattr(payload, "image_urls", None) or [getattr(payload, "image_url", None)])[0] if (getattr(payload, "image_urls", None) or getattr(payload, "image_url", None)) else None,
+                        "image_urls": (getattr(payload, "image_urls", None) or ([getattr(payload, "image_url", None)] if getattr(payload, "image_url", None) else [])),
                     })
                     .execute()
                 )
@@ -503,6 +504,7 @@ async def get_chat_thread(
                 "brief": v.brief,
                 "created_at": v.created_at,
                 "image_url": v.image_url,   # from first variant in this turn
+                "image_urls": getattr(v, "image_urls", None),
                 "variants": [],
             }
             order.append(tid)

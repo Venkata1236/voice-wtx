@@ -3,14 +3,23 @@ import { insightsService } from '../../services/insightsService';
 import NoteCard from './NoteCard';
 import NoteEditor from './NoteEditor';
 
+const PREDEFINED_VALUES = ['misc', 'client_feedback', 'brand_rule', 'important', 'follow_up', 'research'];
+
 export default function InsightsBoard({ brandId }) {
   const [notes, setNotes] = useState([]);
   const [countInfo, setCountInfo] = useState({ current: 0, max: 25, status: 'green' });
   const [editing, setEditing] = useState(null);
   const [showNew, setShowNew] = useState(false);
+  const [customTags, setCustomTags] = useState([]); // user-created tags, persisted per brand
+
+  const storageKey = `voice_custom_tags_${brandId}`;
 
   useEffect(() => {
     loadNotes();
+    // Load persisted custom tags for this brand
+    let stored = [];
+    try { stored = JSON.parse(localStorage.getItem(`voice_custom_tags_${brandId}`) || '[]'); } catch { stored = []; }
+    setCustomTags(Array.isArray(stored) ? stored : []);
   }, [brandId]);
 
   const loadNotes = async () => {
@@ -20,6 +29,23 @@ export default function InsightsBoard({ brandId }) {
     ]);
     setNotes(notesData);
     setCountInfo(countData);
+  };
+
+  const persistCustom = (list) => {
+    setCustomTags(list);
+    try { localStorage.setItem(storageKey, JSON.stringify(list)); } catch { /* ignore */ }
+  };
+
+  // All custom tags = persisted list + any found on existing notes (deduped)
+  const noteCustomTags = notes
+    .map((n) => n.tag)
+    .filter((t) => t && !PREDEFINED_VALUES.includes(t));
+  const allCustomTags = [...new Set([...customTags, ...noteCustomTags])];
+
+  const handleAddTag = (t) => {
+    const tag = (t || '').trim();
+    if (!tag || PREDEFINED_VALUES.includes(tag) || allCustomTags.includes(tag)) return;
+    persistCustom([...customTags, tag]);
   };
 
   const handleSaveNew = async (data) => {
@@ -42,15 +68,15 @@ export default function InsightsBoard({ brandId }) {
     }
   };
 
-  // Distinct tags currently in use (for the editor's chip list)
-  const existingTags = [...new Set(notes.map((n) => n.tag).filter(Boolean))];
-
-  // Delete a tag everywhere — affected notes become Miscellaneous
+  // Delete a tag everywhere — remove from persisted list + revert affected notes to misc
   const handleDeleteTag = async (tagValue) => {
+    persistCustom(customTags.filter((t) => t !== tagValue));
     const affected = notes.filter((n) => n.tag === tagValue);
     try {
-      await Promise.all(affected.map((n) => insightsService.updateNote(n.id, { tag: 'misc' })));
-      loadNotes();
+      if (affected.length) {
+        await Promise.all(affected.map((n) => insightsService.updateNote(n.id, { tag: 'misc' })));
+        loadNotes();
+      }
     } catch (err) {
       alert(err.response?.data?.detail || 'Failed to delete tag');
     }
@@ -110,7 +136,13 @@ export default function InsightsBoard({ brandId }) {
       {/* New note editor */}
       {showNew && (
         <div style={{ marginBottom: '16px' }}>
-          <NoteEditor onSave={handleSaveNew} onCancel={() => setShowNew(false)} existingTags={existingTags} onDeleteTag={handleDeleteTag} />
+          <NoteEditor
+            onSave={handleSaveNew}
+            onCancel={() => setShowNew(false)}
+            customTags={allCustomTags}
+            onAddTag={handleAddTag}
+            onDeleteTag={handleDeleteTag}
+          />
         </div>
       )}
 
@@ -118,7 +150,15 @@ export default function InsightsBoard({ brandId }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px' }}>
         {notes.map((note) =>
           editing?.id === note.id ? (
-            <NoteEditor key={note.id} note={note} onSave={handleSaveEdit} onCancel={() => setEditing(null)} existingTags={existingTags} onDeleteTag={handleDeleteTag} />
+            <NoteEditor
+              key={note.id}
+              note={note}
+              onSave={handleSaveEdit}
+              onCancel={() => setEditing(null)}
+              customTags={allCustomTags}
+              onAddTag={handleAddTag}
+              onDeleteTag={handleDeleteTag}
+            />
           ) : (
             <NoteCard
               key={note.id}

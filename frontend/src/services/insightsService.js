@@ -35,4 +35,19 @@ export const insightsService = {
     const response = await api.get(`/api/insights/${brandId}/count`);
     return response.data;
   },
+
+  // ── Per-user custom tags ─────────────────────────────────────────────
+  getTags: async (brandId) => {
+    const response = await api.get(`/api/insights/${brandId}/tags`);
+    return response.data;
+  },
+
+  addTag: async (brandId, tag) => {
+    const response = await api.post(`/api/insights/${brandId}/tags`, { tag });
+    return response.data;
+  },
+
+  deleteTag: async (brandId, tag) => {
+    await api.delete(`/api/insights/${brandId}/tags/${encodeURIComponent(tag)}`);
+  },
 };

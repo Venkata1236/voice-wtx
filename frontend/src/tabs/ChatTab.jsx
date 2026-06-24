@@ -25,9 +25,9 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  // Image attachment — imageUrl is the Supabase URL, imagePreview is the local blob
-  const [imageUrl, setImageUrl] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
+  // Image attachments — up to 5, each { url, preview }
+  const MAX_IMAGES = 5;
+  const [images, setImages] = useState([]);
   // Refine — when set, the next send rewrites this variant with the same model
   const [refineTarget, setRefineTarget] = useState(null);
   const [visionReading, setVisionReading] = useState(false);
@@ -46,8 +46,7 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
 
       setTurns([]);
       setBriefText('');
-      setImageUrl(null);
-      setImagePreview(null);
+      setImages([]);
       setRefineTarget(null);
       setVisionReading(false);
 
@@ -62,8 +61,7 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
       setSessionId(null);
       setTurns([]);
       setBriefText('');
-      setImageUrl(null);
-      setImagePreview(null);
+      setImages([]);
       setRefineTarget(null);
     }
   }, [activeSessionId]);
@@ -101,14 +99,14 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
   const cancelRefine = () => setRefineTarget(null);
 
   const handleImageUploaded = (url, preview) => {
-    setImageUrl(url);
-    setImagePreview(preview);
+    setImages((prev) => (prev.length >= MAX_IMAGES ? prev : [...prev, { url, preview }]));
   };
 
   // Shared image upload used by the + button, paste, and drag-and-drop
   const [imageUploading, setImageUploading] = useState(false);
   const uploadImageFile = async (file) => {
     if (!file || !file.type?.startsWith('image/') || loading || imageUploading) return;
+    if (images.length >= MAX_IMAGES) { alert(`You can attach up to ${MAX_IMAGES} images.`); return; }
     const preview = URL.createObjectURL(file);
     setImageUploading(true);
     try {
@@ -138,9 +136,8 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
   };
   const [dragOver, setDragOver] = useState(false);
 
-  const handleRemoveImage = () => {
-    setImageUrl(null);
-    setImagePreview(null);
+  const handleRemoveImage = (idx) => {
+    setImages((prev) => prev.filter((_, i) => i !== idx));
   };
 
   const handleBuildBrief = (fields) => {
@@ -168,8 +165,7 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
     setError('');
     isStreamingRef.current = true;
     setBriefText('');
-    setImageUrl(null);
-    setImagePreview(null);
+    setImages([]);
     setRefineTarget(null);
     shouldAutoScroll.current = true;
 
@@ -269,8 +265,9 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
         turn_type: 'single',
         brief,
         created_at: new Date().toISOString(),
-        image_url: imageUrl,
-        image_preview: imagePreview,
+        image_url: images[0]?.url,
+        image_urls: images.map((i) => i.url),
+        image_previews: images.map((i) => i.preview),
         variants: [emptyVariant(model)],
       };
       setTurns((prev) => [...prev, newTurn]);
@@ -284,7 +281,8 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
             raw_brief: brief,
             session_id: sessionId,
             turn_id: turnId,
-            image_url: imageUrl || undefined,
+            image_url: images[0]?.url || undefined,
+            image_urls: images.length ? images.map((i) => i.url) : undefined,
           },
           {
             onSession: (id) => {
@@ -334,8 +332,9 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
         turn_type: 'compare',
         brief,
         created_at: new Date().toISOString(),
-        image_url: imageUrl,
-        image_preview: imagePreview,
+        image_url: images[0]?.url,
+        image_urls: images.map((i) => i.url),
+        image_previews: images.map((i) => i.preview),
         variants: [emptyVariant(modelA), emptyVariant(modelB)],
       };
       setTurns((prev) => [...prev, newTurn]);
@@ -350,7 +349,8 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
             model_b: modelB,
             session_id: sessionId,
             turn_id: turnId,
-            image_url: imageUrl || undefined,
+            image_url: images[0]?.url || undefined,
+            image_urls: images.length ? images.map((i) => i.url) : undefined,
           },
           {
             onSession: (id) => {
@@ -541,46 +541,50 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
           </div>
         )}
 
-        {/* Image preview above input bar */}
-        {imagePreview && (
-          <div style={{ position: 'relative', alignSelf: 'flex-start', width: '140px', marginTop: '6px', marginBottom: '8px' }}>
-            <img
-              src={imagePreview}
-              alt="Attached"
-              style={{
-                width: '140px',
-                height: '140px',
-                borderRadius: '14px',
-                border: '1px solid var(--sep)',
-                objectFit: 'cover',
-                display: 'block',
-              }}
-            />
-            <button
-              onClick={handleRemoveImage}
-              title="Remove image"
-              style={{
-                position: 'absolute',
-                top: '-7px',
-                right: '-7px',
-                width: '22px',
-                height: '22px',
-                borderRadius: '50%',
-                border: '1px solid var(--sep)',
-                background: '#fff',
-                color: '#1E1E2A',
-                fontSize: '14px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                lineHeight: 1,
-                boxShadow: '0 1px 4px rgba(0,0,0,0.18)',
-              }}
-            >
-              ×
-            </button>
+        {/* Image previews above input bar (up to 5) */}
+        {images.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignSelf: 'flex-start', marginTop: '6px', marginBottom: '8px' }}>
+            {images.map((img, idx) => (
+              <div key={idx} style={{ position: 'relative', width: '110px' }}>
+                <img
+                  src={img.preview}
+                  alt={`Attached ${idx + 1}`}
+                  style={{
+                    width: '110px',
+                    height: '110px',
+                    borderRadius: '14px',
+                    border: '1px solid var(--sep)',
+                    objectFit: 'cover',
+                    display: 'block',
+                  }}
+                />
+                <button
+                  onClick={() => handleRemoveImage(idx)}
+                  title="Remove image"
+                  style={{
+                    position: 'absolute',
+                    top: '-7px',
+                    right: '-7px',
+                    width: '22px',
+                    height: '22px',
+                    borderRadius: '50%',
+                    border: '1px solid var(--sep)',
+                    background: '#fff',
+                    color: '#1E1E2A',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    lineHeight: 1,
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.18)',
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
           </div>
         )}
 
@@ -642,7 +646,7 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <ImageAttachButton
                 onUploaded={handleImageUploaded}
-                disabled={loading}
+                disabled={loading || images.length >= MAX_IMAGES}
               />
               <button
                 onClick={() => setShowBuilder(!showBuilder)}

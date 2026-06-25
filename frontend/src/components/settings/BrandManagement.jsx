@@ -22,9 +22,15 @@ export default function BrandManagement() {
     }
   };
 
-  const handleArchive = async (brandId) => {
-    await api.patch(`/api/brands/${brandId}/archive`);
-    fetchBrands();
+  const handleDelete = async (brand) => {
+    if (!confirm(`Delete "${brand.name}"? This permanently removes the brand and all its chats, notes, documents, and copy. This cannot be undone.`)) return;
+    setError('');
+    try {
+      await api.delete(`/api/brands/${brand.id}`);
+      fetchBrands();
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to delete brand');
+    }
   };
 
   return (
@@ -72,8 +78,8 @@ export default function BrandManagement() {
               <span style={{ fontSize: '13px', fontWeight: 600 }}>{brand.name}</span>
               <span style={{ fontSize: '11px', color: 'var(--label3)' }}>{brand.category}</span>
             </div>
-            <span onClick={() => handleArchive(brand.id)} style={{ fontSize: '12px', color: 'var(--label3)', cursor: 'pointer' }}>
-              Archive
+            <span onClick={() => handleDelete(brand)} style={{ fontSize: '12px', color: 'var(--red)', cursor: 'pointer', fontWeight: 500 }}>
+              Delete
             </span>
           </div>
         ))}

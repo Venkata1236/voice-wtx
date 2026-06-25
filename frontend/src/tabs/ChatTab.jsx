@@ -223,9 +223,6 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
             onVisionReading: () => setVisionReading(true),
             onVisionDone: () => setVisionReading(false),
             onVisionError: (count) => { setVisionReading(false); setVisionError(count || 1); },
-            onVisionReading: () => setVisionReading(true),
-            onVisionDone: () => setVisionReading(false),
-            onVisionError: (count) => { setVisionReading(false); setVisionError(count || 1); },
                         onScoreUpdate: (data) =>
               updateTurnVariant(turnId, data.index, (v) => ({
                 ...v,
@@ -302,6 +299,9 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
                 ...v,
                 content: (v.content || '') + text,
               })),
+            onVisionReading: () => setVisionReading(true),
+            onVisionDone: () => setVisionReading(false),
+            onVisionError: (count) => { setVisionReading(false); setVisionError(count || 1); },
             onVariantDone: (data) =>
               updateTurnVariant(turnId, data.index, (v) => ({
                 ...v,
@@ -319,6 +319,7 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
               })),
             onDone: () => {
               setLoading(false);
+              setVisionReading(false);
               isStreamingRef.current = false;
               window.dispatchEvent(new CustomEvent('voice-session-created'));
             },

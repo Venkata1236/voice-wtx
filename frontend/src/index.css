@@ -83,3 +83,22 @@ body {
   height: 0;
   display: none;                /* Chrome, Edge, Safari */
 }
+
+/* Vision reading indicator — indeterminate shimmer + animated dots */
+@keyframes visionSlide {
+  0%   { transform: translateX(-100%); }
+  50%  { transform: translateX(160%); }
+  100% { transform: translateX(-100%); }
+}
+
+.vision-dots::after {
+  content: '';
+  animation: visionDots 1.4s steps(4, end) infinite;
+}
+@keyframes visionDots {
+  0%   { content: ''; }
+  25%  { content: '.'; }
+  50%  { content: '..'; }
+  75%  { content: '...'; }
+  100% { content: ''; }
+}

@@ -31,6 +31,7 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
   // Refine — when set, the next send rewrites this variant with the same model
   const [refineTarget, setRefineTarget] = useState(null);
   const [visionReading, setVisionReading] = useState(false);
+  const [visionError, setVisionError] = useState(0);
 
   const isStreamingRef = useRef(false);
   const scrollRef = useRef(null);
@@ -163,6 +164,7 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
 
     setLoading(true);
     setError('');
+    setVisionError(0);
     isStreamingRef.current = true;
     setBriefText('');
     setImages([]);
@@ -220,8 +222,10 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
               })),
             onVisionReading: () => setVisionReading(true),
             onVisionDone: () => setVisionReading(false),
+            onVisionError: (count) => { setVisionReading(false); setVisionError(count || 1); },
             onVisionReading: () => setVisionReading(true),
             onVisionDone: () => setVisionReading(false),
+            onVisionError: (count) => { setVisionReading(false); setVisionError(count || 1); },
                         onScoreUpdate: (data) =>
               updateTurnVariant(turnId, data.index, (v) => ({
                 ...v,
@@ -368,6 +372,7 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
               })),
             onVisionReading: () => setVisionReading(true),
             onVisionDone: () => setVisionReading(false),
+            onVisionError: (count) => { setVisionReading(false); setVisionError(count || 1); },
                         onScoreUpdate: (data) =>
               updateTurnVariant(turnId, data.index, (v) => ({
                 ...v,
@@ -492,6 +497,19 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
           }}>
             <span style={{ animation: 'pulse 1s ease-in-out infinite' }}>👁</span>
             Reading image...
+          </div>
+        )}
+
+        {/* Vision failure warning — image attached but couldn't be read */}
+        {visionError > 0 && !visionReading && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '8px',
+            padding: '8px 12px', borderRadius: 'var(--radius-md)',
+            background: 'var(--orange-bg, #FFF3E0)', border: '1px solid rgba(234,179,8,.35)',
+            fontSize: '12px', color: 'var(--orange, #b45309)',
+          }}>
+            <span>⚠</span>
+            Couldn't read {visionError > 1 ? `${visionError} images` : 'the image'} — the copy was written without {visionError > 1 ? 'them' : 'it'}. Check the image and try again.
           </div>
         )}
 

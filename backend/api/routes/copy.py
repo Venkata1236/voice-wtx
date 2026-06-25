@@ -215,6 +215,10 @@ async def generate_copy_stream(
                     f"BRIEF:\n{user_prompt}"
                 )
                 yield f"data: {json.dumps({'type': 'vision_done', 'context': visual_context})}\n\n"
+            else:
+                # Images were attached but couldn't be read — tell the UI
+                # instead of silently generating copy without them.
+                yield f"data: {json.dumps({'type': 'vision_error', 'count': len(_urls)})}\n\n"
 
         # Single mode now returns ONE response (was 3)
         for variant_index in range(1):

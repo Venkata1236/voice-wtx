@@ -490,13 +490,27 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
         {/* Vision reading indicator */}
         {visionReading && (
           <div style={{
-            display: 'flex', alignItems: 'center', gap: '8px',
-            padding: '7px 12px', borderRadius: 'var(--radius-md)',
+            display: 'flex', flexDirection: 'column', gap: '6px',
+            padding: '10px 14px', borderRadius: 'var(--radius-md)',
             background: 'var(--surface)', border: '1px solid var(--sep)',
-            fontSize: '12px', color: 'var(--label3)',
+            marginBottom: '8px',
           }}>
-            <span style={{ animation: 'pulse 1s ease-in-out infinite' }}>👁</span>
-            Reading image...
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--label2)', fontWeight: 500 }}>
+              <span style={{ animation: 'pulse 1s ease-in-out infinite', fontSize: '15px' }}>👁</span>
+              <span>Reading your image{'\u2026'}</span>
+              <span className="vision-dots" style={{ color: 'var(--label3)' }} />
+            </div>
+            {/* indeterminate shimmer bar so a slow read reads as "working" */}
+            <div style={{ height: '3px', borderRadius: '2px', background: 'var(--sep)', overflow: 'hidden' }}>
+              <div style={{
+                height: '100%', width: '40%', borderRadius: '2px',
+                background: 'var(--label3)', opacity: 0.6,
+                animation: 'visionSlide 1.2s ease-in-out infinite',
+              }} />
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--label3)' }}>
+              This can take a few seconds for detailed images.
+            </div>
           </div>
         )}
 

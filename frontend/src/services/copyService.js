@@ -113,6 +113,8 @@ export const copyService = {
             callbacks.onVisionReading?.();
           } else if (data.type === 'vision_done') {
             callbacks.onVisionDone?.(data.context);
+          } else if (data.type === 'vision_error') {
+            callbacks.onVisionError?.(data.count);
           } else if (data.type === 'variant_start') {
             callbacks.onVariantStart?.(data.index);
           } else if (data.type === 'token') {

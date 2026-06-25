@@ -260,7 +260,7 @@ async def generate_copy_stream(
                         "content": final_copy,
                         "score": 0,
                         "status": "pending",
-                        "keywords": json.dumps(keywords),
+                        "keywords": keywords,
                         "turn_id": turn_id,
                         "turn_type": "single",
                         "image_url": (getattr(payload, "image_urls", None) or [getattr(payload, "image_url", None)])[0] if (getattr(payload, "image_urls", None) or getattr(payload, "image_url", None)) else None,

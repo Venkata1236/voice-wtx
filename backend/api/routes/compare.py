@@ -241,6 +241,9 @@ async def compare_generate_stream(
                     f"BRIEF:\n{user_prompt}"
                 )
                 yield f"data: {json_lib.dumps({'type': 'vision_done', 'context': visual_context})}\n\n"
+            else:
+                _vurls = getattr(payload, 'image_urls', None) or ([getattr(payload, 'image_url', None)] if getattr(payload, 'image_url', None) else [])
+                yield f"data: {json_lib.dumps({'type': 'vision_error', 'count': len([u for u in _vurls if u])})}\n\n"
 
         # ── Both panes run CONCURRENTLY ──────────────────────────────
         # Each pane streams its events into a shared queue; the generator

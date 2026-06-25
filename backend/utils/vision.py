@@ -36,7 +36,7 @@ async def _fetch_as_base64(url: str) -> tuple[str, str]:
 async def extract_visual_context(image_url: str) -> str:
     """
     Given a Supabase Storage public URL, fetch the image and use
-    Gemini 1.5 Flash (vision) to extract a structured visual brief.
+    Gemini 2.5 Flash (vision) to extract a structured visual brief.
     Returns a plain-text paragraph the copy model can use as context.
     """
     try:

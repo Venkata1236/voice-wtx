@@ -1,18 +1,28 @@
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, BackgroundTasks
 from fastapi.security import HTTPBearer
 from jose import jwt
 from passlib.context import CryptContext
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from loguru import logger
 from api.middleware.rate_limiter import limiter
 from fastapi import Request
 import os
+import hashlib
+import secrets
 from dotenv import load_dotenv
 
 from db.supabase_client import get_supabase, get_supabase_admin
-from schemas.user import UserLogin, TokenResponse, UserResponse, UserCreate
+from schemas.user import (
+    UserLogin,
+    TokenResponse,
+    UserResponse,
+    UserCreate,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+)
 from api.middleware.auth_guard import get_current_user
 from api.middleware.role_guard import require_admin
+from utils.email import send_password_reset_email
 
 load_dotenv()
 
@@ -25,6 +35,14 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 480))
+RESET_TOKEN_EXPIRE_MINUTES = int(os.getenv("RESET_TOKEN_EXPIRE_MINUTES", 60))
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
+
+# ── Helper — hash a reset token for storage ──────────────────────
+def _hash_token(raw_token: str) -> str:
+    # We store only the SHA-256 of the token, never the raw token itself
+    return hashlib.sha256(raw_token.encode()).hexdigest()
 
 
 # ── Helper — hash password ────────────────────────────────────────
@@ -216,3 +234,125 @@ async def change_password(
 
     logger.info(f"Password changed for user: {current_user['email']}")
     return {"message": "Password changed successfully"}
+
+# ── POST /api/auth/forgot-password ───────────────────────────────
+@router.post("/forgot-password")
+@limiter.limit("5/hour")
+async def forgot_password(
+    request: Request,
+    payload: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+):
+    """
+    Start the self-service password reset.
+
+    Always returns the same generic message whether or not the email
+    exists — this prevents attackers from using it to discover which
+    emails have accounts (email enumeration). If the account exists and
+    is active, a one-time reset link is emailed in the background.
+    """
+    generic = {
+        "message": "If an account with that email exists, a password reset link has been sent."
+    }
+
+    supabase_admin = get_supabase_admin()
+    res = (
+        supabase_admin.table("users")
+        .select("id, email, full_name, is_active")
+        .eq("email", payload.email)
+        .execute()
+    )
+
+    # No account, or deactivated account → return generic (no leak)
+    if not res.data or not res.data[0].get("is_active"):
+        return generic
+
+    user = res.data[0]
+
+    # Invalidate any prior unused tokens for this user
+    supabase_admin.table("password_reset_tokens").update({"used": True}).eq(
+        "user_id", user["id"]
+    ).eq("used", False).execute()
+
+    # Create a fresh one-time token — raw goes in the link, hash goes in DB
+    raw_token = secrets.token_urlsafe(32)
+    token_hash = _hash_token(raw_token)
+    expires_at = (
+        datetime.now(timezone.utc) + timedelta(minutes=RESET_TOKEN_EXPIRE_MINUTES)
+    ).isoformat()
+
+    supabase_admin.table("password_reset_tokens").insert(
+        {
+            "user_id": user["id"],
+            "token_hash": token_hash,
+            "expires_at": expires_at,
+            "used": False,
+        }
+    ).execute()
+
+    reset_link = f"{FRONTEND_URL}/reset-password?token={raw_token}"
+
+    # Send the email in the background so the request returns immediately
+    background_tasks.add_task(
+        send_password_reset_email, user["email"], user.get("full_name", ""), reset_link
+    )
+
+    logger.info(f"Password reset requested for: {user['email']}")
+    return generic
+
+
+# ── POST /api/auth/reset-password ────────────────────────────────
+@router.post("/reset-password")
+@limiter.limit("5/hour")
+async def reset_password(request: Request, payload: ResetPasswordRequest):
+    """
+    Complete the reset: validate the one-time token and set the new password.
+    """
+    if len(payload.new_password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 8 characters",
+        )
+
+    token_hash = _hash_token(payload.token)
+    supabase_admin = get_supabase_admin()
+
+    res = (
+        supabase_admin.table("password_reset_tokens")
+        .select("*")
+        .eq("token_hash", token_hash)
+        .eq("used", False)
+        .execute()
+    )
+
+    if not res.data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset link. Please request a new one.",
+        )
+
+    token_row = res.data[0]
+
+    # Check expiry (handle tz-aware timestamptz from Supabase)
+    expires_raw = token_row["expires_at"].replace("Z", "+00:00")
+    expires_at = datetime.fromisoformat(expires_raw)
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+    if datetime.now(timezone.utc) > expires_at:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This reset link has expired. Please request a new one.",
+        )
+
+    # Update the password and consume the token
+    new_hash = hash_password(payload.new_password)
+    supabase_admin.table("users").update({"password_hash": new_hash}).eq(
+        "id", token_row["user_id"]
+    ).execute()
+    supabase_admin.table("password_reset_tokens").update({"used": True}).eq(
+        "id", token_row["id"]
+    ).execute()
+
+    logger.info(f"Password reset completed for user_id: {token_row['user_id']}")
+    return {"message": "Password reset successfully. You can now sign in."}

@@ -83,6 +83,7 @@ async def stream_from_model(
     Falls back to non-streaming if provider doesn't support it.
     """
     stream_fn = STREAM_PROVIDER_MAP.get(model)
+    logger.info(f"Streaming from model: {model}")
 
     if not stream_fn:
         # Fallback — generate fully then yield all at once

@@ -69,7 +69,7 @@ export default function MicButton({ onTranscript }) {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+    <div style={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
       <button
         onClick={handleClick}
         disabled={processing}
@@ -93,7 +93,15 @@ export default function MicButton({ onTranscript }) {
       </button>
 
       {error && (
-        <span style={{ fontSize: '10px', color: 'var(--red)', whiteSpace: 'nowrap' }}>
+        <span style={{
+          position: 'absolute',
+          bottom: '-20px',
+          right: 0,
+          fontSize: '10px',
+          color: 'var(--red)',
+          whiteSpace: 'nowrap',
+          pointerEvents: 'none',
+        }}>
           {error}
         </span>
       )}

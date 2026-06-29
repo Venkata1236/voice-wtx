@@ -58,15 +58,21 @@ async def extract_visual_context(image_url: str) -> str:
             }
         }
 
-        response = await asyncio.get_event_loop().run_in_executor(
-            None,
-            lambda: model.generate_content([image_part])
+        response = await asyncio.wait_for(
+            asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: model.generate_content([image_part])
+            ),
+            timeout=20.0,   # cap Gemini at 20s — emits vision_error if exceeded
         )
 
         context = response.text.strip()
         logger.info(f"Vision extraction complete | {len(context)} chars")
         return context
 
+    except asyncio.TimeoutError:
+        logger.warning("Vision extraction timed out after 20s — generating without image")
+        return ""
     except Exception as e:
         logger.error(f"Vision extraction failed: {e}")
         # Return empty string — copy generation still works, just without image context

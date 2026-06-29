@@ -128,12 +128,12 @@ async def update_kb(
 async def upload_document(request: Request,
     brand_id: str,
     doc_type: DocType,
-    # File upload — accepts PDF or DOCX
+    # File upload — accepts PDF, DOCX, or HTML
     file: UploadFile = File(...),
     current_user: dict = Depends(require_any),
 ):
     """
-    Uploads a brand document (PDF or DOCX) to the KB.
+    Uploads a brand document (PDF, DOCX, or HTML) to the KB.
     Document is parsed immediately — extracted text stored in DB.
     Status is set to pending — Copy Lead must approve before AI reads it.
     """

@@ -18,6 +18,7 @@ def setup_logger():
     # Remove default handler
     logger.remove()
 
+
     if APP_ENV == "production":
         # ── Production — structured logs ───────────────────────────
         # Console — INFO and above, no colors (cleaner for log aggregators)

@@ -23,6 +23,7 @@ class KBDocumentResponse(BaseModel):
         from_attributes = True
 
 
+
 class KBUpdate(BaseModel):
     tone_tags: Optional[list[str]] = None
     brand_rules_do: Optional[list[str]] = None

@@ -28,6 +28,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
 # ── CORS ──────────────────────────────────────────────────────────
 allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
 

@@ -22,6 +22,7 @@ def format_as_plain_text(variants: list[dict], brand_name: str) -> str:
             except ValueError:
                 created_date = created_date[:10]
 
+
         lines.append(f"--- {brand_name} | Variant {i} ---")
         lines.append(f"Date: {created_date}")
         lines.append(f"Model: {variant.get('model', '')}")

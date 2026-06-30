@@ -36,6 +36,7 @@ export default function WorkspacePage() {
     });
   };
 
+  
   const activeBrand = useBrandStore((state) => state.activeBrand);
   const kb = useBrandStore((state) => state.kb);
 

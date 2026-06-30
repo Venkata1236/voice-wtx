@@ -36,6 +36,7 @@ def _brand_profile(kb: dict) -> str:
     return "\n".join(parts) if parts else "No brand profile available."
 
 
+
 async def score_brand_relevance(copy: str, kb: dict) -> int:
     """
     Returns a 0-100 score for how on-brand the copy is vs the brand document.

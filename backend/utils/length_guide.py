@@ -23,6 +23,7 @@ _CAPTION_BY_PLATFORM = {
 }
 _DEFAULT_CAPTION = _CAPTION_BY_PLATFORM["instagram"]
 
+
 # Detects an explicit length requirement in the brief (words or characters).
 # Matches "under 10 words", "20 words", "max 150 characters", "10-15 words", etc.
 # Deliberately ignores "minutes", "mins", and other units.

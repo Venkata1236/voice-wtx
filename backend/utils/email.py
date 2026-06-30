@@ -64,6 +64,7 @@ def send_email(to: str, subject: str, html_body: str, text_body: str | None = No
         return False
 
 
+
 def send_password_reset_email(to: str, full_name: str, reset_link: str) -> bool:
     """Send the password-reset email with a one-time link."""
     name = full_name or "there"

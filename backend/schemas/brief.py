@@ -55,6 +55,11 @@ class BriefPayload(BaseModel):
     # in raw_brief, instead of generating fresh. Uses the same model.
     refine_from: Optional[str] = None
 
+    # ── "More like this" ───────────────────────────────────────────
+    # When set, the model generates a FRESH variation in the same style
+    # and spirit as this reference copy (not a rewrite of it).
+    more_like: Optional[str] = None
+
     # ── Image attachment ───────────────────────────────────────────
     # Public Supabase Storage URL(s) of attached image(s) (optional).
     # If provided, the vision model extracts context from them first.

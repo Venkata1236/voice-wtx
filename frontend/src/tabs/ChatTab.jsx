@@ -99,6 +99,84 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
 
   const cancelRefine = () => setRefineTarget(null);
 
+  // ── More like this — one-click fresh variation in the same style ──
+  const handleMoreLike = async (variant) => {
+    if (loading) return;
+    const turnId = newTurnId();
+    const mlModel = variant.model;
+    const mlFormat = variant.format || format;
+    const brief = 'More variations in this style';
+
+    setLoading(true);
+    setError('');
+    setVisionError(0);
+    isStreamingRef.current = true;
+    shouldAutoScroll.current = true;
+
+    const newTurn = {
+      turn_id: turnId,
+      turn_type: 'single',
+      brief,
+      created_at: new Date().toISOString(),
+      variants: [{ ...emptyVariant(mlModel), format: mlFormat }],
+    };
+    setTurns((prev) => [...prev, newTurn]);
+
+    try {
+      await copyService.generateStream(
+        {
+          brand_id: brand.id,
+          format: mlFormat,
+          model: mlModel,
+          raw_brief: brief,
+          more_like: variant.content,
+          session_id: sessionId,
+          turn_id: turnId,
+        },
+        {
+          onSession: (id) => {
+            setSessionId(id);
+            onSessionCreated(id);
+          },
+          onTitle: () => {
+            window.dispatchEvent(new CustomEvent('voice-session-created'));
+          },
+          onToken: (index, text) =>
+            updateTurnVariant(turnId, index, (v) => ({
+              ...v,
+              content: (v.content || '') + text,
+            })),
+          onScoreUpdate: (data) =>
+            updateTurnVariant(turnId, data.index, (v) => ({ ...v, score: data.score })),
+          onVariantDone: (data) =>
+            updateTurnVariant(turnId, data.index, (v) => ({
+              ...v,
+              id: data.variant_id,
+              content: data.content || v.content || '',
+              keywords: data.keywords || [],
+              score: data.score,
+              model: data.model,
+              format: data.format,
+              brand_id: data.brand_id,
+              session_id: data.session_id,
+              turn_id: data.turn_id,
+              turn_type: 'single',
+              streaming: false,
+            })),
+          onDone: () => {
+            setLoading(false);
+            isStreamingRef.current = false;
+            window.dispatchEvent(new CustomEvent('voice-session-created'));
+          },
+        }
+      );
+    } catch {
+      setError('Could not generate more. Please try again.');
+      setLoading(false);
+      isStreamingRef.current = false;
+    }
+  };
+
   const handleImageUploaded = (url, preview) => {
     setImages((prev) => (prev.length >= MAX_IMAGES ? prev : [...prev, { url, preview }]));
   };
@@ -453,6 +531,7 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
             onApprove={handleApprove}
             onReject={handleReject}
             onRefine={handleRefine}
+            onMoreLike={handleMoreLike}
           />
         ))}
       </div>

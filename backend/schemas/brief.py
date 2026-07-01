@@ -35,6 +35,7 @@ MODEL_PRIORITY_ORDER = [
 ]
 
 
+
 class BriefPayload(BaseModel):
     brand_id: str
     platform: Optional[str] = None

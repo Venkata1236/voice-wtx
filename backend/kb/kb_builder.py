@@ -254,6 +254,7 @@ def format_kb_for_prompt(kb_context: dict) -> str:
             + "\n".join(rejection_lines)
         )
 
+
     # ── Output format instruction — prevent metadata leakage ────────
     sections.append(
         "OUTPUT RULES:\n"

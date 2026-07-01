@@ -8,7 +8,7 @@ const MODEL_LABELS = {
   'forge': 'Forge',
 };
 
-export default function VariantCard({ variant, onRefine }) {
+export default function VariantCard({ variant, onRefine, onMoreLike }) {
   const [copied, setCopied] = useState(false);
 
   const isStreaming = variant.streaming === true;
@@ -138,9 +138,10 @@ export default function VariantCard({ variant, onRefine }) {
         </div>
       )}
 
-      {/* Refine action */}
-      {!isStreaming && onRefine && (
-        <div style={{ padding: '0 14px 12px' }}>
+      {/* Actions */}
+      {!isStreaming && (onRefine || onMoreLike) && (
+        <div style={{ padding: '0 14px 12px', display: 'flex', gap: '8px' }}>
+          {onRefine && (
           <button
             onClick={() => onRefine(variant)}
             title="Refine this response"
@@ -164,6 +165,33 @@ export default function VariantCard({ variant, onRefine }) {
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
             Refine
           </button>
+          )}
+
+          {onMoreLike && (
+          <button
+            onClick={() => onMoreLike(variant)}
+            title="Generate a fresh variation in this style"
+            style={{
+              background: 'transparent',
+              border: '1px solid var(--sep)',
+              cursor: 'pointer',
+              padding: '4px 10px',
+              borderRadius: 'var(--radius-md)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              color: 'var(--label2)',
+              fontSize: '11.5px',
+              fontWeight: 500,
+              fontFamily: 'inherit',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            More like this
+          </button>
+          )}
         </div>
       )}
     </div>

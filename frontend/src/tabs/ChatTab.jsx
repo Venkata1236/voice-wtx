@@ -81,6 +81,19 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
     shouldAutoScroll.current = nearBottom;
   };
 
+  // ── Build an empty streaming variant (component-level, shared) ────
+  const mkVariant = (m, fmt) => ({
+    id: null,
+    content: '',
+    keywords: [],
+    score: 0,
+    status: 'pending',
+    model: m,
+    format: fmt || format,
+    brand_id: brand.id,
+    streaming: true,
+  });
+
   // ── Update one variant inside one turn (by turn_id + index) ───────
   const updateTurnVariant = (turnId, index, updater) => {
     setTurns((prev) =>
@@ -118,7 +131,7 @@ export default function ChatTab({ brand, activeSessionId, onSessionCreated, mode
       turn_type: 'single',
       brief,
       created_at: new Date().toISOString(),
-      variants: [{ ...emptyVariant(mlModel), format: mlFormat }],
+      variants: [{ ...mkVariant(mlModel, mlFormat) }],
     };
     setTurns((prev) => [...prev, newTurn]);
 

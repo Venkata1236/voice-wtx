@@ -189,8 +189,19 @@ async def generate_copy_stream(
         system_prompt += "\n\n" + build_length_instruction(payload.format.value, user_prompt)
 
         effective_prompt = user_prompt
+        # ── More like this: fresh variation in the same style as a reference ──
+        if getattr(payload, 'more_like', None):
+            effective_prompt = (
+                "You are writing a NEW piece of marketing copy in the same style, "
+                "tone, structure, and spirit as the reference below — but it must be "
+                "genuinely different wording, not a paraphrase or minor edit.\n\n"
+                f"REFERENCE COPY (match its vibe, not its exact words):\n{payload.more_like}\n\n"
+                f"BRIEF:\n{user_prompt}\n\n"
+                "Write one fresh variation that a reader would recognise as the same "
+                "voice and format, while saying something new. Return only the new copy."
+            )
         # ── Refine: rewrite an existing response per the instruction ──
-        if getattr(payload, 'refine_from', None):
+        elif getattr(payload, 'refine_from', None):
             effective_prompt = (
                 "You are refining a piece of existing marketing copy.\n\n"
                 f"EXISTING COPY:\n{payload.refine_from}\n\n"

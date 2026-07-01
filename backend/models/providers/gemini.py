@@ -9,6 +9,7 @@ load_dotenv()
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 
+
 async def generate_with_gemini(
     system_prompt: str,
     user_prompt: str,

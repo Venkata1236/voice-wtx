@@ -12,6 +12,7 @@ def format_as_plain_text(variants: list[dict], brand_name: str) -> str:
     """
     lines = []
 
+
     for i, variant in enumerate(variants, 1):
         created_date = variant.get("created_at", "")
         if isinstance(created_date, str) and created_date:

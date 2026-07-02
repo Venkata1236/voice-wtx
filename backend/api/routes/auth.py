@@ -185,7 +185,7 @@ async def register_team_member(
         .insert({
             "email": payload.email,
             "full_name": payload.full_name,
-            "role": "view",       # always view on self-signup; admin promotes
+            "role": "copywriter",   # lowest-privilege default; admin promotes via user management
             "password_hash": password_hash,
             "is_active": True,
         })
@@ -193,7 +193,7 @@ async def register_team_member(
     )
 
     user_data = new_user.data[0]
-    logger.info(f"New user registered: {payload.email} | Role: view")
+    logger.info(f"New user registered: {payload.email} | Role: copywriter")
     return UserResponse(**user_data)
 
 

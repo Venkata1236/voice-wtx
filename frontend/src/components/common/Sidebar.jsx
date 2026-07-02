@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useBrandStore } from '../../store/brandStore';
 import { useAuthStore } from '../../store/authStore';
 import SessionItem from './SessionItem';
@@ -6,6 +6,7 @@ import SessionItem from './SessionItem';
 export default function Sidebar({ onNewChat, sessions = [], activeSessionId, onSelectSession, onRefreshSessions }) {
   const { brands, activeBrand, fetchBrands, setActiveBrand, loading } = useBrandStore();
   const { user, logout } = useAuthStore();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     fetchBrands();
@@ -173,7 +174,7 @@ export default function Sidebar({ onNewChat, sessions = [], activeSessionId, onS
             </div>
           </div>
           <button
-            onClick={logout}
+            onClick={() => setShowLogoutConfirm(true)}
             title="Log out"
             style={{
               background: 'transparent',
@@ -192,6 +193,52 @@ export default function Sidebar({ onNewChat, sessions = [], activeSessionId, onS
           </button>
         </div>
       </div>
+
+      {showLogoutConfirm && (
+        <div
+          onClick={(e) => e.target === e.currentTarget && setShowLogoutConfirm(false)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000,
+          }}
+        >
+          <div style={{
+            background: '#fff', borderRadius: 'var(--radius-lg)',
+            padding: '24px', width: '320px', boxShadow: 'var(--shadow-md)',
+          }}>
+            <h3 style={{ margin: '0 0 8px', fontSize: '16px', fontWeight: 700, color: 'var(--label1)' }}>
+              Log out?
+            </h3>
+            <p style={{ margin: '0 0 20px', fontSize: '13px', color: 'var(--label3)', lineHeight: 1.5 }}>
+              Are you sure you want to log out of WTX Voice?
+            </p>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                style={{
+                  padding: '8px 16px', borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--sep)', background: '#fff',
+                  color: 'var(--label2)', fontSize: '13px', fontWeight: 600,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={logout}
+                style={{
+                  padding: '8px 16px', borderRadius: 'var(--radius-md)',
+                  border: 'none', background: 'var(--red, #dc2626)',
+                  color: '#fff', fontSize: '13px', fontWeight: 600,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                Log out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }

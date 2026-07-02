@@ -4,11 +4,14 @@ import { authService } from '../services/authService';
 
 export default function SignupPage() {
   const navigate = useNavigate();
+  const [step, setStep] = useState('form');   // 'form' | 'otp'
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -18,11 +21,38 @@ export default function SignupPage() {
     setLoading(true);
     try {
       await authService.register({ full_name: fullName, email, password });
-      navigate('/login', { state: { registered: true } });
+      setStep('otp');
+      setInfo('We emailed a 6-digit code to ' + email);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Could not create account. Please contact your admin.');
+      setError(err.response?.data?.detail || 'Could not create account. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleVerify = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (otp.trim().length !== 6) { setError('Enter the 6-digit code.'); return; }
+    setLoading(true);
+    try {
+      await authService.verifyOtp(email, otp.trim());
+      navigate('/login');
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Verification failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setError('');
+    setInfo('');
+    try {
+      await authService.resendOtp(email);
+      setInfo('A new code has been sent to ' + email);
+    } catch {
+      setInfo('A new code has been sent if the account exists.');
     }
   };
 
@@ -61,6 +91,8 @@ export default function SignupPage() {
       {/* Right panel */}
       <div style={rightStyle}>
         <div style={cardStyle}>
+          {step === 'form' ? (
+          <>
           <div style={{ marginBottom: '32px' }}>
             <h1 style={{ fontSize: '22px', fontWeight: 700, marginBottom: '6px', color: 'var(--label1)' }}>
               Create account
@@ -158,6 +190,66 @@ export default function SignupPage() {
               Sign in
             </Link>
           </p>
+          </>
+          ) : (
+          <>
+          <div style={{ marginBottom: '28px' }}>
+            <h1 style={{ fontSize: '22px', fontWeight: 700, marginBottom: '6px', color: 'var(--label1)' }}>
+              Verify your email
+            </h1>
+            <p style={{ fontSize: '13px', color: 'var(--label3)' }}>
+              Enter the 6-digit code we sent to <strong>{email}</strong>
+            </p>
+          </div>
+
+          <form onSubmit={handleVerify}>
+            <label style={labelStyle}>Verification code</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+              required
+              autoFocus
+              placeholder="______"
+              style={{ ...inputStyle, letterSpacing: '8px', textAlign: 'center', fontSize: '20px', fontWeight: 700 }}
+            />
+
+            {info && (
+              <div style={{ marginTop: '12px', fontSize: '12px', color: 'var(--label3)' }}>{info}</div>
+            )}
+            {error && (
+              <div style={{
+                marginTop: '12px', padding: '10px 12px', borderRadius: 'var(--radius-sm)',
+                background: 'var(--red-bg)', color: 'var(--red)', fontSize: '12px',
+              }}>
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                width: '100%', marginTop: '20px', padding: '12px',
+                borderRadius: 'var(--radius-md)', border: 'none',
+                background: '#1E1E2A', color: '#fff', fontSize: '14px', fontWeight: 600,
+                cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.65 : 1, fontFamily: 'inherit',
+              }}
+            >
+              {loading ? 'Verifying…' : 'Verify & continue'}
+            </button>
+          </form>
+
+          <p style={{ marginTop: '20px', fontSize: '12px', color: 'var(--label3)', textAlign: 'center' }}>
+            Didn't get it?{' '}
+            <span onClick={handleResend} style={{ color: 'var(--accent)', cursor: 'pointer', fontWeight: 600 }}>
+              Resend code
+            </span>
+          </p>
+          </>
+          )}
 
           <div style={{
             marginTop: '32px', paddingTop: '20px',

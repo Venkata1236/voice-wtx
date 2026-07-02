@@ -85,7 +85,7 @@ async def login(request: Request, payload: UserLogin):
         supabase.table("users")
         .select("*")
         .eq("email", payload.email)
-        .single()
+        .maybe_single()
         .execute()
     )
 
@@ -147,14 +147,14 @@ async def get_me(current_user: dict = Depends(get_current_user)):
 
 # ── POST /api/auth/register ───────────────────────────────────────
 @router.post("/register", response_model=UserResponse)
+@limiter.limit("20/hour")
 async def register_team_member(
+    request: Request,
     payload: UserCreate,
-    # Only admin can add new team members
-    current_user: dict = Depends(require_admin),
 ):
     """
-    Admin creates a new team member account.
-    Password is auto-generated and should be shared privately.
+    Self-service signup. New accounts get role=view by default.
+    An admin can promote them afterward via user management.
     """
     supabase_admin = get_supabase_admin()
 
@@ -169,21 +169,23 @@ async def register_team_member(
     if existing.data:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="A user with this email already exists",
+            detail="An account with this email already exists",
         )
 
-    # Generate a temporary password
-    import secrets
-    temp_password = secrets.token_urlsafe(12)
-    password_hash = hash_password(temp_password)
+    if len(payload.password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 8 characters",
+        )
 
-    # Insert new user into database
+    password_hash = hash_password(payload.password)
+
     new_user = (
         supabase_admin.table("users")
         .insert({
             "email": payload.email,
             "full_name": payload.full_name,
-            "role": payload.role,
+            "role": "view",       # always view on self-signup; admin promotes
             "password_hash": password_hash,
             "is_active": True,
         })
@@ -191,20 +193,7 @@ async def register_team_member(
     )
 
     user_data = new_user.data[0]
-
-    # Assign brand access if brand_ids provided
-    if payload.brand_ids:
-        brand_access = [
-            {"user_id": user_data["id"], "brand_id": brand_id}
-            for brand_id in payload.brand_ids
-        ]
-        supabase_admin.table("user_brand_access").insert(brand_access).execute()
-
-    logger.info(
-        f"New team member created: {payload.email} | Role: {payload.role} | "
-        f"Temp password: {temp_password}"
-    )
-
+    logger.info(f"New user registered: {payload.email} | Role: view")
     return UserResponse(**user_data)
 
 

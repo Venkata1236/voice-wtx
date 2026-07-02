@@ -15,6 +15,18 @@ export const authService = {
     return response.data;
   },
 
+  // ── Verify signup email with OTP ────────────────────────────────────
+  verifyOtp: async (email, otp) => {
+    const response = await api.post('/api/auth/verify-otp', { email, otp });
+    return response.data;
+  },
+
+  // ── Resend the signup OTP ───────────────────────────────────────────
+  resendOtp: async (email) => {
+    const response = await api.post('/api/auth/resend-otp', { email });
+    return response.data;
+  },
+
   // ── Request a password reset link (self-service) ────────────────────
   forgotPassword: async (email) => {
     const response = await api.post('/api/auth/forgot-password', { email });

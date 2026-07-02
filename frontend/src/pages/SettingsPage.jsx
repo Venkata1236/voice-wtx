@@ -14,7 +14,6 @@ const TABS = [
 
 export default function SettingsPage({ onClose }) {
   const user = useAuthStore((state) => state.user);
-  const [activeTab, setActiveTab] = useState('team');
 
   const isAdmin = user?.role === 'admin';
   const isCopyLead = user?.role === 'copy_lead';
@@ -23,6 +22,9 @@ export default function SettingsPage({ onClose }) {
     if (tab.key === 'kb_queue') return isAdmin || isCopyLead;
     return isAdmin;
   });
+
+  // Default to the first tab the user can actually see (not always 'team')
+  const [activeTab, setActiveTab] = useState(visibleTabs[0]?.key || null);
 
   return (
     <div style={overlayStyle} onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -53,10 +55,31 @@ export default function SettingsPage({ onClose }) {
           </div>
 
           <div style={{ flex: 1, overflowY: 'auto' }}>
-            {activeTab === 'team' && <TeamMembers />}
-            {activeTab === 'brands' && <BrandManagement />}
-            {activeTab === 'kb_queue' && <KBApprovalQueue />}
-            {activeTab === 'flags' && <FeatureFlags />}
+            {visibleTabs.length === 0 ? (
+              <div style={{ padding: '8px 4px' }}>
+                <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Your account</div>
+                <div style={{ fontSize: '13px', color: 'var(--label2)', marginBottom: '2px' }}>{user?.full_name}</div>
+                <div style={{ fontSize: '12px', color: 'var(--label3)', marginBottom: '2px' }}>{user?.email}</div>
+                <div style={{ fontSize: '12px', color: 'var(--label3)', textTransform: 'capitalize', marginBottom: '20px' }}>
+                  Role: {user?.role?.replace('_', ' ')}
+                </div>
+                <div style={{
+                  padding: '12px 14px', borderRadius: 'var(--radius-md)',
+                  background: 'var(--surface)', border: '1px solid var(--sep)',
+                  fontSize: '12.5px', color: 'var(--label3)', lineHeight: 1.5,
+                }}>
+                  Admin settings aren't available for your role. Ask an admin to grant you
+                  brand access or additional permissions.
+                </div>
+              </div>
+            ) : (
+              <>
+                {activeTab === 'team' && <TeamMembers />}
+                {activeTab === 'brands' && <BrandManagement />}
+                {activeTab === 'kb_queue' && <KBApprovalQueue />}
+                {activeTab === 'flags' && <FeatureFlags />}
+              </>
+            )}
           </div>
         </div>
       </div>

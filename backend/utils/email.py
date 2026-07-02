@@ -120,3 +120,50 @@ def send_password_reset_email(to: str, full_name: str, reset_link: str) -> bool:
   </body>
 </html>"""
     return send_email(to, subject, html_body, text_body)
+
+def send_otp_email(to: str, full_name: str, otp: str) -> bool:
+    """Send the email-verification OTP code."""
+    name = full_name or "there"
+    subject = "Your WTX Voice verification code"
+    text_body = (
+        f"Hi {name},\n\n"
+        f"Your WTX Voice verification code is: {otp}\n\n"
+        f"It expires in 5 minutes. If you didn't sign up, ignore this email.\n\n"
+        f"— WTX Voice"
+    )
+    html_body = f"""\
+<!DOCTYPE html>
+<html>
+  <body style="margin:0;padding:0;background:#f4f4f7;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f7;padding:32px 0;">
+      <tr><td align="center">
+        <table role="presentation" width="440" cellpadding="0" cellspacing="0"
+               style="background:#ffffff;border-radius:12px;border:1px solid #e6e6ec;overflow:hidden;">
+          <tr><td style="padding:28px 32px 8px;">
+            <span style="font-weight:800;font-size:18px;letter-spacing:-0.5px;color:#1E1E2A;">WTX</span>
+            <span style="color:#c3c3cc;">&nbsp;|&nbsp;</span>
+            <span style="font-weight:600;font-size:15px;color:#6366f1;">Voice</span>
+          </td></tr>
+          <tr><td style="padding:8px 32px 0;">
+            <h1 style="font-size:19px;color:#1E1E2A;margin:12px 0 6px;">Verify your email</h1>
+            <p style="font-size:14px;color:#555;line-height:1.5;margin:0 0 20px;">
+              Hi {name}, use this code to finish setting up your WTX Voice account.
+              It expires in <strong>5 minutes</strong>.
+            </p>
+            <div style="font-size:34px;font-weight:800;letter-spacing:10px;color:#1E1E2A;
+                        background:#f4f4f7;border-radius:10px;padding:16px 0;text-align:center;">
+              {otp}
+            </div>
+            <p style="font-size:12px;color:#999;line-height:1.5;margin:20px 0 0;">
+              If you didn't sign up for WTX Voice, you can safely ignore this email.
+            </p>
+          </td></tr>
+          <tr><td style="padding:24px 32px;border-top:1px solid #f0f0f4;">
+            <p style="font-size:11px;color:#bbb;margin:0;">WTX Voice · WTX India</p>
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </body>
+</html>"""
+    return send_email(to, subject, html_body, text_body)

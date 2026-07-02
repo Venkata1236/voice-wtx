@@ -4,6 +4,7 @@ import { useAuthStore } from './store/authStore';
 import LoginPage from './pages/LoginPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import SignupPage from './pages/SignupPage';
 import WorkspacePage from './pages/WorkspacePage';
 
 function ProtectedRoute({ children }) {
@@ -59,6 +60,14 @@ export default function App() {
           }
         />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route
+          path="/signup"
+          element={
+            <PublicRoute>
+              <SignupPage />
+            </PublicRoute>
+          }
+        />
         <Route
           path="/"
           element={

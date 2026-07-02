@@ -17,7 +17,7 @@ export default function SignupPage() {
     if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
     setLoading(true);
     try {
-      await authService.register({ full_name: fullName, email, password, role: 'view' });
+      await authService.register({ full_name: fullName, email, password });
       navigate('/login', { state: { registered: true } });
     } catch (err) {
       setError(err.response?.data?.detail || 'Could not create account. Please contact your admin.');

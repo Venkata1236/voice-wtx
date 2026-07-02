@@ -15,7 +15,8 @@ class UserRole(str, Enum):
 class UserCreate(BaseModel):
     email: EmailStr
     full_name: str
-    role: UserRole
+    password: str
+    role: Optional[UserRole] = None   # ignored on self-signup; admin sets via user management
     brand_ids: list[str] = []
 
 
@@ -56,5 +57,3 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
-    
-    

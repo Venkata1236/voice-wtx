@@ -19,10 +19,13 @@ from schemas.user import (
     UserCreate,
     ForgotPasswordRequest,
     ResetPasswordRequest,
+    VerifyOtpRequest,
+    ResendOtpRequest,
 )
 from api.middleware.auth_guard import get_current_user
 from api.middleware.role_guard import require_admin
-from utils.email import send_password_reset_email
+from utils.email import send_password_reset_email, send_otp_email
+import random
 
 load_dotenv()
 
@@ -105,6 +108,13 @@ async def login(request: Request, payload: UserLogin):
             detail="Your account has been deactivated. Contact your Admin.",
         )
 
+    # Block login until the email has been verified via OTP
+    if not user.get("email_verified", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Please verify your email before signing in.",
+        )
+
     # Verify the password against stored hash
     if not verify_password(payload.password, user.get("password_hash", "")):
         raise HTTPException(
@@ -146,7 +156,7 @@ async def get_me(current_user: dict = Depends(get_current_user)):
 
 
 # ── POST /api/auth/register ───────────────────────────────────────
-@router.post("/register", response_model=UserResponse)
+@router.post("/register")
 @limiter.limit("20/hour")
 async def register_team_member(
     request: Request,
@@ -188,13 +198,116 @@ async def register_team_member(
             "role": "copywriter",   # lowest-privilege default; admin promotes via user management
             "password_hash": password_hash,
             "is_active": True,
+            "email_verified": False,   # must verify via OTP before login
         })
         .execute()
     )
 
     user_data = new_user.data[0]
-    logger.info(f"New user registered: {payload.email} | Role: copywriter")
-    return UserResponse(**user_data)
+
+    # Generate + send a 6-digit OTP for email verification
+    _create_and_send_otp(payload.email, payload.full_name)
+
+    logger.info(f"New user registered (pending verification): {payload.email}")
+    return {
+        "message": "Account created. Enter the 6-digit code we emailed you to verify.",
+        "email": payload.email,
+    }
+
+
+# ── Helper: create + send an OTP for an email ────────────────────
+def _create_and_send_otp(email: str, full_name: str = "") -> None:
+    supabase_admin = get_supabase_admin()
+    # Invalidate any prior unused codes for this email
+    supabase_admin.table("email_otps").update({"used": True}).eq(
+        "email", email
+    ).eq("used", False).execute()
+
+    otp = f"{random.randint(0, 999999):06d}"
+    otp_hash = _hash_token(otp)
+    expires_at = (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat()
+
+    supabase_admin.table("email_otps").insert({
+        "email": email,
+        "otp_hash": otp_hash,
+        "expires_at": expires_at,
+        "attempts": 0,
+        "used": False,
+    }).execute()
+
+    send_otp_email(email, full_name, otp)
+
+
+# ── POST /api/auth/verify-otp ────────────────────────────────────
+@router.post("/verify-otp")
+@limiter.limit("10/hour")
+async def verify_otp(request: Request, payload: VerifyOtpRequest):
+    """Verify the 6-digit code and mark the user's email as verified."""
+    supabase_admin = get_supabase_admin()
+    res = (
+        supabase_admin.table("email_otps")
+        .select("*")
+        .eq("email", payload.email)
+        .eq("used", False)
+        .order("created_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+    if not res.data:
+        raise HTTPException(status_code=400, detail="No active code. Please request a new one.")
+
+    row = res.data[0]
+
+    # Expiry
+    exp_raw = row["expires_at"].replace("Z", "+00:00")
+    expires_at = datetime.fromisoformat(exp_raw)
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if datetime.now(timezone.utc) > expires_at:
+        raise HTTPException(status_code=400, detail="This code has expired. Please request a new one.")
+
+    # Attempt limit
+    if row.get("attempts", 0) >= 5:
+        supabase_admin.table("email_otps").update({"used": True}).eq("id", row["id"]).execute()
+        raise HTTPException(status_code=400, detail="Too many attempts. Please request a new code.")
+
+    # Compare
+    if _hash_token(payload.otp) != row["otp_hash"]:
+        supabase_admin.table("email_otps").update(
+            {"attempts": row.get("attempts", 0) + 1}
+        ).eq("id", row["id"]).execute()
+        raise HTTPException(status_code=400, detail="Incorrect code. Please try again.")
+
+    # Success — consume the code and verify the user
+    supabase_admin.table("email_otps").update({"used": True}).eq("id", row["id"]).execute()
+    supabase_admin.table("users").update({"email_verified": True}).eq(
+        "email", payload.email
+    ).execute()
+
+    logger.info(f"Email verified via OTP: {payload.email}")
+    return {"message": "Email verified. You can now sign in."}
+
+
+# ── POST /api/auth/resend-otp ────────────────────────────────────
+@router.post("/resend-otp")
+@limiter.limit("5/hour")
+async def resend_otp(request: Request, payload: ResendOtpRequest):
+    """Resend a fresh OTP to an unverified account."""
+    supabase_admin = get_supabase_admin()
+    res = (
+        supabase_admin.table("users")
+        .select("full_name, email_verified")
+        .eq("email", payload.email)
+        .maybe_single()
+        .execute()
+    )
+    # Generic response either way (no enumeration)
+    generic = {"message": "If that account exists and is unverified, a new code has been sent."}
+    if not res or not res.data or res.data.get("email_verified"):
+        return generic
+
+    _create_and_send_otp(payload.email, res.data.get("full_name", ""))
+    return generic
 
 
 # ── POST /api/auth/change-password ───────────────────────────────

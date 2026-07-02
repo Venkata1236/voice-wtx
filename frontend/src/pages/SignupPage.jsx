@@ -73,27 +73,27 @@ export default function SignupPage() {
           <form onSubmit={handleSubmit}>
             {/* Full name */}
             <div style={{ marginBottom: '16px' }}>
-              <label style={labelStyle}>Full name</label>
+              <label style={labelStyle}>User name</label>
               <input
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 required
                 autoFocus
-                placeholder="Venkat Bommavaram"
+                placeholder="Enter your name"
                 style={inputStyle}
               />
             </div>
 
             {/* Email */}
             <div style={{ marginBottom: '16px' }}>
-              <label style={labelStyle}>Work email</label>
+              <label style={labelStyle}>Mail</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                placeholder="you@wtxindia.com"
+                placeholder="Enter your mail"
                 style={inputStyle}
               />
             </div>
@@ -107,7 +107,7 @@ export default function SignupPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  placeholder="At least 8 characters"
+                  placeholder="Enter your password"
                   style={{ ...inputStyle, paddingRight: '42px' }}
                 />
                 <button

@@ -152,7 +152,9 @@ export default function LoginPage() {
 
           <p style={{ marginTop: '24px', fontSize: '12px', color: 'var(--label3)', textAlign: 'center', lineHeight: 1.5 }}>
             Don't have an account?{' '}
-            <span style={{ color: 'var(--label2)' }}>Contact your admin to get access.</span>
+            <Link to="/signup" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>
+              Sign up
+            </Link>
           </p>
 
           <div style={{
@@ -161,7 +163,7 @@ export default function LoginPage() {
             display: 'flex', justifyContent: 'center',
           }}>
             <span style={{ fontSize: '11px', color: 'var(--label3)' }}>
-              WTX India · Internal platform · {new Date().getFullYear()}
+              WTX India · Internal platform
             </span>
           </div>
         </div>
